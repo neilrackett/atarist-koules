@@ -13,3 +13,4 @@ dist/
 tests/hatari/out/
 sim/dumpf
 sim/dumpx
+sim/*.dSYM/
