@@ -14,6 +14,9 @@
 * library call on a 68000, and there are dozens of them in *
 * the draw path.  As constants they fold to a shift.       *
 ***********************************************************/
+/* Changes for Atari ST/STE with STDL                      *
+ *  Copyright(c)2026 by Neil Rackett                       *
+ ************************NR*********************************/
 
 #ifndef _KOULES_GAMEDIM_H
 #define _KOULES_GAMEDIM_H

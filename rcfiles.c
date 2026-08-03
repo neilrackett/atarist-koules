@@ -20,6 +20,9 @@
 /* Changes for joystick "accelerate by deflection"         *
  *  (c) 1997 by Ludvik Tesar (Ludv\'{\i}k Tesa\v{r})       *
  ************************LT*********************************/
+/* Changes for Atari ST/STE with STDL                      *
+ *  Copyright(c)2026 by Neil Rackett                       *
+ ************************NR*********************************/
 #include <errno.h>
 #include "koules.h"
 #ifdef STDLSUPPORT

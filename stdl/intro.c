@@ -16,6 +16,9 @@
 * gameplan.c only wants the briefing shown and the key      *
 * press waited for.                                         *
 ***********************************************************/
+/* Changes for Atari ST/STE with STDL                      *
+ *  Copyright(c)2026 by Neil Rackett                       *
+ ************************NR*********************************/
 
 #include <interface.h>
 #include <stdio.h>

@@ -12,6 +12,9 @@
 *  add at most +/-30 (eye placement) or -22..+134          *
 *  (exhaust spray, cos index adds a further 90).           *
 ***********************************************************/
+/* Changes for Atari ST/STE with STDL                      *
+ *  Copyright(c)2026 by Neil Rackett                       *
+ ************************NR*********************************/
 
 #include "fixed.h"
 

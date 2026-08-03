@@ -20,6 +20,9 @@
 * timing comparison isolates the arithmetic rather than the *
 * RNG.                                                      *
 ***********************************************************/
+/* Changes for Atari ST/STE with STDL                      *
+ *  Copyright(c)2026 by Neil Rackett                       *
+ ************************NR*********************************/
 
 #ifndef _KOULES_KRAND_H
 #define _KOULES_KRAND_H

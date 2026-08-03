@@ -9,6 +9,9 @@
 *  all, so this supplies just enough for the simulation     *
 *  translation units to compile.  Nothing here is called.   *
 ***********************************************************/
+/* Changes for Atari ST/STE with STDL                      *
+ *  Copyright(c)2026 by Neil Rackett                       *
+ ************************NR*********************************/
 
 #ifndef _KOULES_SIM_INTERFACE_H
 #define _KOULES_SIM_INTERFACE_H

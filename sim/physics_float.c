@@ -16,6 +16,9 @@
 *  Do not "improve" anything in here.  Its whole value is  *
 *  being the original.                                     *
 ***********************************************************/
+/* Changes for Atari ST/STE with STDL                      *
+ *  Copyright(c)2026 by Neil Rackett                       *
+ ************************NR*********************************/
 
 #include "koules.h"
 #include "physics.h"

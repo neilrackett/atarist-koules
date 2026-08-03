@@ -6,6 +6,9 @@
 *  stdl/interface.h  common definitions for the STDL       *
 *                    backend                               *
 ***********************************************************/
+/* Changes for Atari ST/STE with STDL                      *
+ *  Copyright(c)2026 by Neil Rackett                       *
+ ************************NR*********************************/
 
 #ifndef _KOULES_STDL_INTERFACE_H
 #define _KOULES_STDL_INTERFACE_H

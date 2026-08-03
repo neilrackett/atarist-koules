@@ -47,6 +47,9 @@
  * attack, which is the part you actually recognise - and no long
  * sample can block the soundscape behind it.
  */
+/* Changes for Atari ST/STE with STDL                      *
+ *  Copyright(c)2026 by Neil Rackett                       *
+ ************************NR*********************************/
 
 #include <interface.h>
 

@@ -11,6 +11,9 @@
 *  explosion fragment loop, and the creator cloud's        *
 *  rejection sampler.                                      *
 ***********************************************************/
+/* Changes for Atari ST/STE with STDL                      *
+ *  Copyright(c)2026 by Neil Rackett                       *
+ ************************NR*********************************/
 
 #include <stdio.h>
 #include <stdlib.h>

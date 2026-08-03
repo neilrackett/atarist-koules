@@ -5,6 +5,9 @@
 *----------------------------------------------------------*
 *  stdl/input.c  keyboard and joystick                     *
 ***********************************************************/
+/* Changes for Atari ST/STE with STDL                      *
+ *  Copyright(c)2026 by Neil Rackett                       *
+ ************************NR*********************************/
 
 #include <interface.h>
 #include <stdbool.h>

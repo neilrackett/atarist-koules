@@ -1,6 +1,9 @@
 /***********************************************************
 *  krand.c - see krand.h for why this exists               *
 ***********************************************************/
+/* Changes for Atari ST/STE with STDL                      *
+ *  Copyright(c)2026 by Neil Rackett                       *
+ ************************NR*********************************/
 
 #include "krand.h"
 

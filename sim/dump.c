@@ -12,6 +12,9 @@
 *                                                          *
 *  usage: dump [nobjects] [frames] [seed] [perturb]                   *
 ***********************************************************/
+/* Changes for Atari ST/STE with STDL                      *
+ *  Copyright(c)2026 by Neil Rackett                       *
+ ************************NR*********************************/
 
 #include <stdio.h>
 #include <stdlib.h>

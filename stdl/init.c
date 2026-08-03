@@ -5,6 +5,9 @@
 *----------------------------------------------------------*
 *  stdl/init.c  start-up, shutdown and the main entry      *
 ***********************************************************/
+/* Changes for Atari ST/STE with STDL                      *
+ *  Copyright(c)2026 by Neil Rackett                       *
+ ************************NR*********************************/
 
 #include <interface.h>
 #include <stdlib.h>

@@ -1,4 +1,6 @@
 #!/bin/sh
+# Changes for Atari ST/STE with STDL
+# Copyright(c)2026 by Neil Rackett
 # Build the ST sample set from upstream's headerless .raw sounds.
 #
 #   tools/mksounds.sh [STDLCONV]

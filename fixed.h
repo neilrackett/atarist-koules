@@ -17,6 +17,9 @@
 *     (see FIX2I) because dx*dx in 16.16 overflows and     *
 *     because upstream truncated those to int anyway       *
 ***********************************************************/
+/* Changes for Atari ST/STE with STDL                      *
+ *  Copyright(c)2026 by Neil Rackett                       *
+ ************************NR*********************************/
 
 #ifndef _KOULES_FIXED_H
 #define _KOULES_FIXED_H

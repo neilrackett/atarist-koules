@@ -8,6 +8,9 @@
  * the empty parameter lists have become prototypes so the backend
  * compiles clean under -Wall -Wextra.  stdl/sound.c implements it.
  */
+/* Changes for Atari ST/STE with STDL                      *
+ *  Copyright(c)2026 by Neil Rackett                       *
+ ************************NR*********************************/
 
 #if defined(SOUND) || defined(NAS_SOUND) || defined(RSOUND)
 

@@ -13,6 +13,9 @@
 *  The 200Hz counter ticks every 5ms, so each measurement  *
 *  runs enough frames to make quantisation irrelevant.     *
 ***********************************************************/
+/* Changes for Atari ST/STE with STDL                      *
+ *  Copyright(c)2026 by Neil Rackett                       *
+ ************************NR*********************************/
 
 #include <stdio.h>
 #include "koules.h"

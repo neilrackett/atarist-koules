@@ -13,6 +13,9 @@
 *----------------------------------------------------------*
 *  sdl/init.c SDL backend support routines                 *
 ***********************************************************/
+/* Changes for Atari ST/STE with STDL                      *
+ *  Copyright(c)2026 by Neil Rackett                       *
+ ************************NR*********************************/
 
 #include <interface.h>
 #include <stdlib.h>

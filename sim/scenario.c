@@ -11,6 +11,9 @@
 *  consume rand() in the same order, so the only difference *
 *  between their outputs is the arithmetic.                 *
 ***********************************************************/
+/* Changes for Atari ST/STE with STDL                      *
+ *  Copyright(c)2026 by Neil Rackett                       *
+ ************************NR*********************************/
 
 #include "koules.h"
 #include "physics.h"

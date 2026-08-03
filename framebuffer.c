@@ -15,6 +15,9 @@
 *  framebuffer.c fast 8 bit framebuffer bitmap creation    *
 *                routines                                  *
 ***********************************************************/
+/* Changes for Atari ST/STE with STDL                      *
+ *  Copyright(c)2026 by Neil Rackett                       *
+ ************************NR*********************************/
 #include "koules.h"
 
 
