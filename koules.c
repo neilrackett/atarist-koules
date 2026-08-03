@@ -149,6 +149,7 @@ static void help(int x,int y,int radius,char *text)
 char            str[2];
 #ifdef KOULES_DEBUG
 uint32_t        ph_restore, ph_points, ph_obj, ph_over, ph_stat, ph_step;
+uint32_t        ph_pump;        /* event pump, incl. the sound refill */
 #define PHASE(acc) do { uint32_t now = STDL_GetTicks (); \
                         acc += now - phmark; phmark = now; } while (0)
 #else
@@ -830,14 +831,15 @@ game ()
 #ifdef KOULES_DEBUG
 	  fprintf (stderr,
 		   "d=%d s=%d phys=%lu draw=%lu | rest=%lu pts=%lu obj=%lu"
-		   " over=%lu stat=%lu step=%lu np=%d mode=%d\n",
+		   " over=%lu stat=%lu step=%lu pump=%lu np=%d mode=%d\n",
 		   drawn, skipped, (unsigned long) physms,
 		   (unsigned long) drawms, (unsigned long) ph_restore,
 		   (unsigned long) ph_points, (unsigned long) ph_obj,
 		   (unsigned long) ph_over, (unsigned long) ph_stat,
-		   (unsigned long) ph_step, npoint, gamemode);
+		   (unsigned long) ph_step, (unsigned long) ph_pump,
+		   npoint, gamemode);
 	  ph_restore = ph_points = ph_obj = ph_over = ph_stat = 0;
-	  ph_step = 0;
+	  ph_step = ph_pump = 0;
 #endif
 	  statwin = t2;
 	  physms = drawms = 0;

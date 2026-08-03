@@ -35,7 +35,7 @@ LDFLAGS  = -Wl,--traditional-format,--stack=32768
 
 GAMEFLAGS = -O2 -m68000 -fomit-frame-pointer -std=gnu99 -Wall -Wextra \
             -Wno-unused-parameter -I. -Istdl -I$(STDL)/include \
-            -DNODIRECT -DSTDLSUPPORT
+            -DNODIRECT -DSTDLSUPPORT -DSOUND
 GAMELIBS  = $(STDL)/libstdl.a
 # extra defines for the diagnostic build, e.g. DBGFLAGS='-DMAXACTIVE=16'
 DBGFLAGS ?=
@@ -45,18 +45,31 @@ SIMSRC   = sim/bench.c sim/scenario.c krand.c
 FIXSRC   = physics.c fixed.c sintab.c
 GAMESRC  = koules.c menu.c gameplan.c framebuffer.c cmap.c rcfiles.c \
            krand.c $(FIXSRC) \
-           stdl/init.c stdl/draw.c stdl/input.c stdl/intro.c
+           stdl/init.c stdl/draw.c stdl/input.c stdl/intro.c \
+           stdl/sound.c
 
 all: $(DIST)/KOULES.TOS $(DIST)/BENCHX.TOS $(DIST)/BENCHF.TOS \
-     $(DIST)/PHASEX.TOS $(DIST)/PHASEF.TOS $(DIST)/PHASE30.TOS
+     $(DIST)/PHASEX.TOS $(DIST)/PHASEF.TOS $(DIST)/PHASE30.TOS \
+     assets
+
+# The sample set the DMA backend loads at start-up: tracked in
+# assets/, rebuilt from upstream's sounds/*.raw by tools/mksounds.sh.
+assets: | $(DIST)
+	cp -f assets/*.WAV $(DIST)/
 
 $(DIST):
 	mkdir -p $(DIST)
 
-$(DIST)/KOULES.TOS: $(GAMESRC) koules.h physics.h fixed.h gamedim.h \
+$(DIST)/KOULES.TOS: $(GAMESRC) koules.h sound.h physics.h fixed.h gamedim.h \
                     stdl/interface.h stdl/font8x8.h text.h $(GAMELIBS) \
                     | $(DIST)
 	$(CC) $(GAMEFLAGS) $(LDFLAGS) -o $@ $(GAMESRC) $(GAMELIBS)
+	$(STRIP) $@
+
+# Plays the seven effects in id order with console markers and
+# exits, so a Hatari sound capture can be checked effect by effect.
+$(DIST)/SFXTEST.TOS: $(GAMESRC) koules.h sound.h $(GAMELIBS) | $(DIST)
+	$(CC) $(GAMEFLAGS) -DKOULES_SOUNDTEST $(LDFLAGS) -o $@ $(GAMESRC) $(GAMELIBS)
 	$(STRIP) $@
 
 # Same binary with a once-a-second frame report on the console: the
@@ -112,6 +125,7 @@ floatcheck:
 	@rm -rf $(DIST)/objcheck $(DIST)/objcheckf
 
 clean:
-	rm -f $(DIST)/KOULES.TOS $(DIST)/KDEBUG.TOS $(DIST)/BENCHX.TOS $(DIST)/BENCHF.TOS $(DIST)/PHASEX.TOS $(DIST)/PHASEF.TOS $(DIST)/PHASE30.TOS
+	rm -f $(DIST)/KOULES.TOS $(DIST)/KDEBUG.TOS $(DIST)/SFXTEST.TOS $(DIST)/BENCHX.TOS $(DIST)/BENCHF.TOS $(DIST)/PHASEX.TOS $(DIST)/PHASEF.TOS $(DIST)/PHASE30.TOS
+	rm -f $(DIST)/*.WAV
 
-.PHONY: all clean floatcheck
+.PHONY: all assets clean floatcheck

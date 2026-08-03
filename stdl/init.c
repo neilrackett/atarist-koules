@@ -127,6 +127,26 @@ main (int argc, char *argv[])
   fprintf (stderr, "koules: assets built in %lu ms, free %ld bytes\n",
 	   (unsigned long) (t1 - t0), freeram ());
 
+#ifdef SOUND
+  /* After the sprites, deliberately: they have first claim on the
+     heap, and whatever is left decides whether the samples fit or
+     the YM has to stand in for them. */
+  t0 = STDL_GetTicks ();
+  init_sound ();
+  t1 = STDL_GetTicks ();
+  fprintf (stderr, "koules: sound ready in %lu ms\n",
+	   (unsigned long) (t1 - t0));
+  sound = sndinit;
+#ifdef KOULES_SOUNDTEST
+  {
+    extern void     sound_selftest (void);
+    sound_selftest ();
+    uninitialize ();
+    return 0;
+  }
+#endif
+#endif
+
   gamemode = MENU;
 #ifdef KOULES_STARTLEVEL
   /* diagnostic builds only: jump straight to a busy level so the

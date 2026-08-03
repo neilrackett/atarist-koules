@@ -26,6 +26,18 @@ refresh (void)
   keystate = STDL_GetKeyState (&nkeys);
 }
 
+#ifdef KOULES_DEBUG
+/*
+ * Anything STDL does cooperatively - and that includes every audio
+ * path that needs the CPU - happens inside the event pump, so this
+ * is where sound would show up if it cost anything.  Accounted
+ * separately from the simulation it sits inside, because "does the
+ * sound system cost frame time" is otherwise unanswerable: it hides
+ * inside the physics total.
+ */
+extern uint32_t ph_pump;
+#endif
+
 /*
  * Upstream's UpdateInput() polls exactly one event per call, which
  * on SDL means the queue drains over several frames.  The ST queue is
@@ -36,6 +48,9 @@ void
 UpdateInput (void)
 {
   STDL_Event      e;
+#ifdef KOULES_DEBUG
+  uint32_t        t0 = STDL_GetTicks ();
+#endif
 
   sawdown = 0;
   while (STDL_PollEvent (&e))
@@ -54,6 +69,9 @@ UpdateInput (void)
 	}
     }
   refresh ();
+#ifdef KOULES_DEBUG
+  ph_pump += STDL_GetTicks () - t0;
+#endif
 }
 
 int

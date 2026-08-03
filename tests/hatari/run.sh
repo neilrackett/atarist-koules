@@ -19,15 +19,23 @@
 #   keydown VAL / keyup VAL
 #   click         double left mouse click
 #   text STR      type a string
+#   recsound      start recording emulated audio to $WAV
+#   recstop       stop recording
 #
 # Console output lands in tests/hatari/out/NAME.log and is echoed
 # at the end. Environment overrides:
 #   HATARI  emulator binary   (default: mac app bundle path)
 #   TOS     TOS/EmuTOS image  (required if no usable default)
 #   FF      fast-forward on|off (default on; use off when taking
-#           timed screenshots)
+#           timed screenshots or recording sound)
 #   MACHINE hatari machine type (default megaste; use st for the
 #           8MHz correctness floor)
+#   SOUND   sound frequency or off (default off; recsound needs it
+#           on - 50066 matches the fastest STE DMA rate)
+#   WAV     where recsound writes. Hatari takes this from the
+#           szYMCaptureFileName config key, so setting it generates
+#           an additional --configfile rather than a command line
+#           option, which Hatari does not have.
 #   EXTRA   extra hatari options
 set -u
 NAME=$1
@@ -41,6 +49,8 @@ HATARI=${HATARI:-/Applications/Hatari.app/Contents/MacOS/hatari}
 TOS=${TOS:?set TOS to a TOS/EmuTOS image path}
 FF=${FF:-on}
 MACHINE=${MACHINE:-megaste}
+SOUND=${SOUND:-off}
+WAV=${WAV:-}
 FIFO=$OUT/fifo_$NAME
 SHOTDIR=$OUT/shots_$NAME
 LOG=$OUT/$NAME.log
@@ -48,8 +58,16 @@ LOG=$OUT/$NAME.log
 rm -rf "$SHOTDIR" "$FIFO" "$LOG"
 mkdir -p "$SHOTDIR"
 
+SNDCFG=
+if [ -n "$WAV" ]; then
+  rm -f "$WAV"
+  SNDCFG=$OUT/sound_$NAME.cfg
+  printf '[Sound]\nszYMCaptureFileName = %s\n' "$WAV" > "$SNDCFG"
+  SNDCFG="--configfile $SNDCFG"
+fi
+
 "$HATARI" --tos "$TOS" --machine "$MACHINE" --fast-forward "$FF" \
-  --fast-boot on ${EXTRA:-} --sound off --statusbar off \
+  --fast-boot on ${EXTRA:-} --sound "$SOUND" $SNDCFG --statusbar off \
   --conout 2 --cmd-fifo "$FIFO" \
   --screenshot-dir "$SHOTDIR" --screenshot-format png \
   "$PROG" > "$LOG" 2>"$OUT/$NAME.err" &
@@ -73,6 +91,8 @@ for cmd in "${CMDS[@]}"; do
     keyup)      echo "hatari-event keyup $2" > "$FIFO" ;;
     text)       shift; echo "hatari-event text $*" > "$FIFO" ;;
     click)      echo "hatari-event doubleclick" > "$FIFO" ;;
+    recsound)   echo "hatari-shortcut recsound" > "$FIFO" ;;
+    recstop)    echo "hatari-shortcut recsound" > "$FIFO" ;;
     waitfor)    shift
                 for i in $(seq 1 240); do
                   grep -q "$*" "$LOG" && break
