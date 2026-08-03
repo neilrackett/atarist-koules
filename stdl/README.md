@@ -19,15 +19,15 @@ and the compositor (full repaint to dirty rectangles).
 
 ## Layout
 
-| File           | Lines | Contents                                                              |
-| -------------- | ----- | --------------------------------------------------------------------- |
-| `draw.c`       |   539 | sprites, primitives, dirty tracking, the particle field, status bar   |
-| `sound.c`      |   445 | the seven effects, on STE DMA where affordable and on the YM elsewhere |
-| `intro.c`      |   196 | level briefings as paged text                                         |
-| `init.c`       |   190 | start-up, shutdown, the pre-shift and sample RAM decisions            |
-| `input.c`      |   166 | keyboard and joystick                                                 |
-| `interface.h`  |   141 | the backend seam                                                      |
-| `font8x8.h`    |  2592 | SDL_gfx's 8x8 font, carried verbatim (LGPL)                           |
+| File          | Lines | Contents                                                               |
+| ------------- | ----- | ---------------------------------------------------------------------- |
+| `draw.c`      | 539   | sprites, primitives, dirty tracking, the particle field, status bar    |
+| `sound.c`     | 445   | the seven effects, on STE DMA where affordable and on the YM elsewhere |
+| `intro.c`     | 196   | level briefings as paged text                                          |
+| `init.c`      | 190   | start-up, shutdown, the pre-shift and sample RAM decisions             |
+| `input.c`     | 166   | keyboard and joystick                                                  |
+| `interface.h` | 141   | the backend seam                                                       |
+| `font8x8.h`   | 2592  | SDL_gfx's 8x8 font, carried verbatim (LGPL)                            |
 
 ## Building
 
@@ -52,35 +52,41 @@ hatari --machine st dist/KOULES.TOS
 
 ## Status
 
-Playable. Measured on an emulated plain 8MHz ST with 1MB, physics and render
-split from the on-screen readout:
+Playable. Measured on an emulated plain 8MHz ST with 1MB; the game caps
+itself at 25 fps (`VFTIME`):
 
-| Scene                          | fps          | physics | render |
-| ------------------------------ | ------------ | ------- | ------ |
-| Level 1                        | 25 (the cap) |     1ms |   16ms |
-| Level 60, steady               | 15           |    18ms |   38ms |
-| Level 60, explosion (~250 pts) | 6-7          |    16ms |  118ms |
-| Menu                           | 25           |     1ms |    1ms |
+| Scene                                | fps | render |
+| ------------------------------------ | --- | ------ |
+| Level 1                              | 19  | 16ms   |
+| Level 60, steady                     | 18  | 30ms   |
+| Level 60, explosion (~250 particles) | 8   | 69ms   |
+| Menu                                 | 25  | 1ms    |
 
-A Mega STE runs level 60 at 21-25 fps and explosions at 11-13. A 512KB ST
-holds 25 fps at level 1.
+Explosions are the worst case and were once far worse: drawing the particle
+field through one batched `STDL_PointsC` call, and merging plane words as
+longs so the inner loop stops spilling registers, took that frame's
+rendering from 124ms to 69ms. Particles are still about half of it.
+
+A Mega STE is comfortably faster throughout. A 512KB ST plays level 1 at the
+same rate, having fallen back to non-pre-shifted sprites.
 
 One binary covers every machine, choosing at run time:
 
-| Machine                | Sprites             | Sound                |
-| ---------------------- | ------------------- | -------------------- |
-| STE / Mega STE, 1MB    | pre-shifted (~82KB) | 6258 Hz DMA samples  |
-| STE, 512KB             | plain               | YM                   |
-| Plain ST, any RAM      | 1MB pre-shifted     | YM                   |
+| Machine             | Sprites             | Sound               |
+| ------------------- | ------------------- | ------------------- |
+| STE / Mega STE, 1MB | pre-shifted (~82KB) | 6258 Hz DMA samples |
+| STE, 512KB          | plain               | YM                  |
+| Plain ST, any RAM   | 1MB pre-shifted     | YM                  |
 
 ## How the port works
 
 **Fixed point.** The 68000 has no FPU, and upstream's physics promotes to
 `double`, so gcc's soft-float made the simulation 18-45x over its frame budget
+
 - 1120ms per frame at 20 objects against a 40ms target. The whole simulation
-is now 16.16 fixed point with a table-driven sine and an integer square root,
-which is 16-28x faster and fits. `make -f Makefile.atari floatcheck` proves no
-soft-float helper survives in the binary.
+  is now 16.16 fixed point with a table-driven sine and an integer square root,
+  which is 16-28x faster and fits. `make -f Makefile.atari floatcheck` proves no
+  soft-float helper survives in the binary.
 
 **Sixteen colours.** Upstream builds seven 32-entry gradient ramps plus white
 and uses all of them at once. The shading is heavily oversampled at this
@@ -96,8 +102,12 @@ It already maintains the persistent background surface that `STDL_Dirty`
 expects, so the compositor records each object's bounding box and restores only
 those. The status bar redraws only when it changes.
 
-**Particles** are drawn as a batch through `STDL_Points` and erased against the
-flat playfield, so they need no save-under and no rectangle each.
+**Particles** are drawn as a batch through `STDL_PointsC` - one call for the
+whole field, colour per point - and erased against the flat playfield, so they
+need no save-under and no rectangle each. Drawing them with XOR so a second
+pass erases them was tried and rejected: it is only marginally cheaper, and
+`explosion()` emits every fragment at the same pixel, so a fresh burst would
+speckle where the colours interfere.
 
 **Sound** is a one-shot DMA read where the hardware and the RAM allow it, and
 YM step effects everywhere else. Mixing in software was measured at 36-75% of

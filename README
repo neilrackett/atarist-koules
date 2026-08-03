@@ -27,35 +27,38 @@
        .                        /             \                        .
             *       .          /    CREDITS    \     *        .
                               /    ---------    \     .            *  .
-			     /                   \
+			                       /                   \
                             Sounds  by Jan  Hubicka      .            .
-  .                        Graphics  by  Jan  Hubicka  
-                          and              Kamil Toman     
-        .           *    Programming   by  Jan  Hubicka
-	                Joystick support by Ludvik Tesar
-             .         HP-UX    sound    by  Lutz  Vieweg                 
-                      OS/2 version  by Thomas  A. K. Kjaer       .
-          .          SDL   version    by   Lubomir   Rintel        *
+  .                        Graphics  by Jan  Hubicka  
+                          and             Kamil Toman     
+        .           *    Programming   by Jan  Hubicka
+	                     Joystick support by Ludvik Tesar
+             .         HP-UX    sound    by Lutz  Vieweg                 
+                       OS/2 version by Thomas A. K. Kjaer
+          .           SDL  version    by  Lubomir   Rintel        *
+                     Atari ST version   by     Neil Rackett
       *             Story by  Kamil Toman  and  Jan  Hubicka
  *                 Script  by  Kamil  Toman  and  Jan Hubicka          .
                   English  Spelling  checked  by  Thomas Marsh
                  SGI  sound  and  creator effect  by Rick Sayre       .
-	         Sound servers  by Joe  Rumsey  and S. M. Patel
-	        /                                              \
+	              Sound servers  by Joe  Rumsey    and S. M. Patel
+	              /                                              \
       .        /                  INTRODUCTION:                 \
               /                  ---------------                 \
     *        Koules is a fast action arcade-style game for UNIX and
-            OS/2. This version supports X window system, SVGAlib for
-	   Linux, SDL and OS/2. It works in fine resolution.  (up  to
-	  900x620) with cool 256 color graphics,  multi-player mode up
-	 to 5 players,  full  sound  and, of  course, network  support.
-        Koules  is an original  idea. The  first  version of Koules  was
-       /     developed from  scratch by Jan Hubicka in July 1995.       \
+            OS/2, SDL, and Atari ST.  This version supports X window
+            system, SVGAlib for Linux, SDL, OS/2, Atari ST using STDL.
+           It works in fine resolution.  (up  to 900x620) with cool 256
+          color graphics, multi-player mode up to 5 players, full sound
+         and, of  course, network  support. Koules  is an original  idea.
+        The  first  version of Koules  was developed from scratch by Jan
+       /                      Hubicka in July 1995.                     \
    .  /                                                                  \
      /                            REQUIREMENTS:                           \
     /                            ---------------                           \
    It runs well on  computers which can be marked  as faster than  a 386DX/40 
   with math coprocessor (320x200 resolution) or 486DX2/50 (640x480 resolution).
+ Atari ST version works well on all STs, sounds best on STE, fastest on Mega STE
 
 
 HOMEPAGE:
@@ -103,6 +106,11 @@ For OS/2:
 =========
 
 Who cares?! :)
+
+For Atari ST
+============
+
+make -f Makefile.atari
 
 Widows 95*:
 ============
