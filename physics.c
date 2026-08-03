@@ -128,42 +128,43 @@ radius (CONST int type)
   return (0);
 }
 
+/* Ramp base for an object's debris; see koules.h for the palette. */
 static INLINE int
 color (CONST int type, CONST int i, CONST int letter)
 {
   switch (type)
     {
     case EHOLE:
-      return (128);
+      return (C_GREEN);
     case HOLE:
-      return (64);
+      return (C_RED);
     case ROCKET:
       return (rocketcolor[i]);
     case BALL:
-      return (64);
+      return (C_RED);
     case LBALL:
       switch (letter)
 	{
 	case L_ACCEL:
-	  return (128);
+	  return (C_GREEN);
 	case L_GUMM:
-	  return (160);
+	  return (C_BLUE);
 	case L_THIEF:
-	  return (192);
+	  return (C_GREY);
 	case L_FINDER:
-	  return (3 * 32);
+	  return (C_YELLOW);
 	case L_TTOOL:
-	  return (3 * 32);
+	  return (C_WHITE);
 	}
 
     case BBALL:
-      return (128);
+      return (C_GREEN);
     case APPLE:
-      return (64);
+      return (C_RED);
     case INSPECTOR:
-      return (160);
+      return (C_BLUE);
     case LUNATIC:
-      return (3 * 32);
+      return (C_GREY);
     }
   return (0);
 }
@@ -290,7 +291,8 @@ explosion (CONST int x, CONST int y, CONST int type, CONST int letter,
       CNT (c_rand);
       CNT (c_rand);
       speed = KRAND_N (3096) + 10;
-      color1 = color (type, n, letter) + (KRAND_N (32));
+      color1 = color (type, n, letter);
+      color1 += KRAND_N (RAMPLEN (color1));
       addpoint (x * 256, y * 256,
 		FIX2I (fixsin (a) * speed),
 		FIX2I (fixcos (a) * speed),
@@ -539,7 +541,7 @@ accel (CONST int i, CONST fix_t howmuch)
 		FIX2I (fixmul (object[i].fy -
 			       fixmul (k * 10, fixcos (rot + p)),
 			       FIXI (KRAND_N (512)))),
-		rocket (KRAND_N (16)), 10);
+		C_YELLOW + KRAND_N (3), 10);
     }
 }
 
@@ -588,7 +590,7 @@ creators_points (int radius, int x1, int y1, int color1)
       addpoint (x * 256, y * 256,
 		(x2 - x) * 256 / (time),
 		(y2 - y) * 256 / (time),
-		color1 + (KRAND_N (32)),
+		color1 + KRAND_N (RAMPLEN (color1)),
 		time);
     }
 }
@@ -601,7 +603,11 @@ creator (CONST int type)
   for (i = nrockets; i < nobjects && (object[i].live ||
 				      object[i].type == CREATOR);
        i++);
-  if (i >= MAXOBJECT)
+  /* MAXACTIVE caps the live population, not just the level's opening
+     line-up: gameplan.c keeps calling creator() as a level runs, and
+     the collision pass is O(n^2), so this is where the frame budget
+     is actually defended. */
+  if (i >= MAXOBJECT || i >= MAXACTIVE)
     return;
   if (!find_possition (&object[i].x, &object[i].y, radius (type)))
     return;

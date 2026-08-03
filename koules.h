@@ -68,10 +68,63 @@ extern int      nomouse;
 #define MENUTIME 5
 
 
+/*
+ * Colours.  Upstream used seven 32-entry ramps at bases 0/32/64/96/
+ * 128/160/192 plus white -- 224 simultaneous colours.  The ST has
+ * sixteen, so a ramp is a base plus RAMPLEN() shades running bright
+ * (specular highlight) to dark, which is the direction of upstream's
+ * "colour + r" shading.  cmap.c holds the actual RGB values.
+ *
+ * Grey is the one two-shade ramp: it dresses the lunatic, the thief
+ * letter ball and the stars, all small.  SHADE() clamps, so code that
+ * asks for a third grey gets the darkest one rather than colour 16.
+ */
+#define C_BG      0             /* flat playfield; also the sprite key */
+#define C_KEY     0
+#define C_WHITE   1
+#define C_RED     2
+#define C_GREEN   5
+#define C_BLUE    8
+#define C_YELLOW 11
+#define C_GREY   14
 
-#define back(x) (32 + x)
-#define ball(x) (64 + x)
-#define rocket(x) (96 + x)
+#define RAMPLEN(base)   ((base) == C_GREY ? 2 : ((base) == C_WHITE ? 1 : 3))
+#define SHADE(base, s)  ((base) + ((s) < RAMPLEN (base) \
+                                   ? (s) : RAMPLEN (base) - 1))
+
+/*
+ * Upstream's three ramp accessors, remapped.  The arguments are the
+ * old 0..31 ramp offsets, so every call site reads unchanged:
+ *   back(0) playfield, back(16) the line under it;
+ *   ball(0) lit red, ball(2) mid, ball(20) dark.
+ */
+#define back(x)   ((x) >= 16 ? C_BLUE + 1 : C_BG)
+#define ball(x)   (C_RED + ((x) >= 20 ? 2 : ((x) >= 2 ? 1 : 0)))
+#define rocket(x) (C_YELLOW + ((x) >= 20 ? 2 : ((x) >= 2 ? 1 : 0)))
+
+/*
+ * Pre-shifted sprites make unaligned blits as cheap as aligned ones
+ * at 16x the sprite RAM: ~82KB for the whole cast, which a 1MB
+ * machine has spare and a stock 520ST has not.  The choice is made
+ * at start-up from the free memory (stdl/init.c) rather than at
+ * build time, so one binary covers both; PRESHIFT_HEAP is the
+ * measured requirement plus room for the rest of the game.
+ * -DKOULES_NOPRESHIFT forces the small build.
+ */
+extern int      sprite_flags;
+#define SPRITE_FLAGS sprite_flags
+#define PRESHIFT_HEAP 150000L
+
+/*
+ * How many simulated objects a cooperative level may hold.  Upstream
+ * capped at 30; the collision pass is O(n^2) and was measured at
+ * 26.7ms for n=10, 63.2ms for n=20 and 109.8ms for n=30 against a
+ * 40ms budget, so this is the knob that buys frame rate at the cost
+ * of how busy a late level feels.
+ */
+#ifndef MAXACTIVE
+#define MAXACTIVE 30
+#endif
 
 
 #define PLAY_X1 0
@@ -135,7 +188,9 @@ extern int      nomouse;
  * explosions plus rocket exhaust; beyond that the oldest slot is
  * recycled, which is what upstream's rotating cursor did anyway.
  */
+#ifndef MAXPOINT
 #define MAXPOINT (512)
+#endif
 #define MAXROCKETS 5
 
 
@@ -295,7 +350,7 @@ extern Object   object[MAXOBJECT];
 extern Point    point[MAXPOINT];
 extern int      gameplan;
 extern int      rotation[MAXROCKETS];
-extern char     control[MAXROCKETS];
+extern unsigned char control[MAXROCKETS];
 extern struct control controls[5];
 extern int      lastlevel, maxlevel;
 #ifdef NETSUPPORT

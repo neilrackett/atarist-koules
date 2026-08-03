@@ -42,6 +42,15 @@ typedef struct
   }
 Numbers;
 
+/*
+ * The menu is an overlay that only changes when the player changes
+ * it, so the ST build repaints it on demand rather than every frame
+ * (measured: 420 glyphs a frame is 207ms on an 8MHz 68000, which is
+ * five frames a second before anything else happens).  Everything
+ * that alters what draw_menu() would put on screen sets this.
+ */
+int             menuchanged = 1;
+
 int             ssound = 1;
 static Numbers  minim[2], maxim[2];
 static int      nmenu;
@@ -275,12 +284,18 @@ playerchange ()
 /*  nrockets++;
    if (nrockets > 5)
    nrockets = 1; */
+  if (playertext[1] != nrockets + '0')
+    menuchanged = 1;
   playertext[1] = nrockets + '0';
 }
 static void
 levelchange ()
 {
+  char            old[sizeof (leveltext)];
+  strcpy (old, leveltext);
   sprintf (leveltext, "LEVEL  %03i ", lastlevel + 1);
+  if (strcmp (old, leveltext))
+    menuchanged = 1;
 }
 
 
@@ -298,6 +313,7 @@ quit ()
 static void
 fit_selector ()
 {
+  menuchanged = 1;
   mtime = MENUTIME;
   mx1p = (XPOSITION (selected) - 2 - mx1) / mtime;
   mx2p = (XPOSITION1 (selected) + 1 - mx2) / mtime;
@@ -693,6 +709,7 @@ draw_menu (CONST int draw)
       mx1 += mx1p;
       my2 += my2p;
       mx2 += mx2p;
+      menuchanged = 1;          /* selector still sliding */
     }
 }
 static int      inctime, changed, waittime;
@@ -848,6 +865,7 @@ keys_keys ()
     {
       keys[player][keynum] = lscan_code;
       keynum++;
+      menuchanged = 1;
 #ifdef SOUND
       if (ssound)
 	play_sound (S_CREATOR2);

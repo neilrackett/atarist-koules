@@ -230,8 +230,8 @@ init_objects1 ()
 	  nobjects = 3 + (int) isqrt32 ((ufix_t) level) * ((nrockets + 1) / 2)
 	    + 2 * nrockets;
 	  nobjects = nobjects * 2 / 3;
-	  if (nobjects > 30)
-	    nobjects = 30;
+	  if (nobjects > MAXACTIVE)
+	    nobjects = MAXACTIVE;
 	  for (i = 0; i < nobjects; i++)
 	    object[i].live = 0;
 	  nbballs = nrockets + level / BBBALLLEVEL;

@@ -22,6 +22,17 @@
  ************************LT*********************************/
 #include <errno.h>
 #include "koules.h"
+#ifdef STDLSUPPORT
+/*
+ * GEMDOS is 8.3 and uppercase and there is no $HOME: mygetenv()
+ * upstream does strlen(getenv("HOME")) with no NULL check, which is a
+ * bus error on a machine that has no environment at all.  Both files
+ * live next to the program instead.
+ */
+static CONST char *name = "KOULES.CFG";
+static CONST char *levelsname = "KOULES.LEV";
+#define KOULES_CWD_RC 1
+#else
 #ifdef XSUPPORT
 static CONST char *name = ".xkoules-controls";
 #else
@@ -51,6 +62,7 @@ static char * mygetenv(char *name)
   name1[199]=0;
   return name1;
 }
+#endif
 
 void
 save_rc ()
@@ -66,7 +78,7 @@ save_rc ()
     return;
 #endif
   fullname[sizeof (fullname)-1] = '\0';
-#ifdef OS2DIVE
+#if defined(OS2DIVE) || defined(KOULES_CWD_RC)
   snprintf (fullname, sizeof (fullname),  "%s", name);
 #else
   snprintf (fullname, sizeof (fullname), "%s/%s", mygetenv ("HOME"), name);
@@ -78,9 +90,11 @@ save_rc ()
     }
   if ((controls = fopen (fullname, "w")) == NULL)
     {
+#ifndef STDLSUPPORT
       printf ("could not open save file:%s\n"
 	      "saving of controls skipped\n", fullname);
       perror ("error");
+#endif
       return;
     }
   fwrite (keys, 1, sizeof (keys), controls);	/*save user defined keys */
@@ -102,7 +116,7 @@ save_rc ()
 #endif
   fclose (controls);
   fullname[sizeof (fullname)-1] = '\0';
-#ifdef OS2DIVE
+#if defined(OS2DIVE) || defined(KOULES_CWD_RC)
   snprintf (fullname, sizeof (fullname), "%s", levelsname);
 #else
   snprintf (fullname, sizeof (fullname), "%s/%s", mygetenv ("HOME"), levelsname);
@@ -114,9 +128,11 @@ save_rc ()
     }
   if ((levels = fopen (fullname, "w")) == NULL)
     {
+#ifndef STDLSUPPORT
       printf ("could not open save file:%s\n"
 	      "saving of controls skipped\n", fullname);
       perror ("error");
+#endif
       return;
     }
   fwrite (&maxlevel, 1, sizeof (int), levels);
@@ -141,7 +157,7 @@ load_rc ()
     return;
 #endif
   fullname[sizeof (fullname)-1] = '\0';
-#ifdef OS2DIVE
+#if defined(OS2DIVE) || defined(KOULES_CWD_RC)
   snprintf (fullname, sizeof (fullname), "%s", name);
 #else
   snprintf (fullname, sizeof (fullname), "%s/%s", mygetenv ("HOME"), name);
@@ -153,9 +169,11 @@ load_rc ()
     }
   if ((controls = fopen (fullname, "r")) == NULL)
     {
+#ifndef STDLSUPPORT
       printf ("could not open save file:%s\n"
 	      "using default values\n", fullname);
       perror ("error");
+#endif
       goto skip;
     }
   fread (keys, 1, sizeof (keys), controls);	/*save user defined keys */
@@ -178,7 +196,7 @@ load_rc ()
   fclose (controls);
 skip:;
   fullname[sizeof (fullname)-1] = '\0';
-#ifdef OS2DIVE
+#if defined(OS2DIVE) || defined(KOULES_CWD_RC)
   snprintf (fullname, sizeof (fullname), "%s", levelsname);
 #else
   snprintf (fullname, sizeof (fullname), "%s/%s", mygetenv ("HOME"), levelsname);
@@ -190,9 +208,11 @@ skip:;
     }
   if ((levels = fopen (fullname, "r")) == NULL)
     {
+#ifndef STDLSUPPORT
       printf ("could not open save file:%s\n"
 	      "using default values\n", fullname);
       perror ("error");
+#endif
       return;
     }
 
