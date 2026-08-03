@@ -110,7 +110,17 @@ Who cares?! :)
 For Atari ST
 ============
 
-make -f Makefile.atari
+STDL, the display library, is a submodule, so clone with it:
+
+        git clone --recurse-submodules https://github.com/neilrackett/atarist-koules.git
+
+(in an existing clone: git submodule update --init).  Then cross
+compile with the atarist-toolkit-docker wrapper - the library is
+built from the submodule as part of it:
+
+        stcmd make -f Makefile.atari
+
+See stdl/README.md for the Atari ST port.
 
 Widows 95*:
 ============

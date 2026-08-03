@@ -3,28 +3,34 @@
 #   STCMD_NO_TTY=1 stcmd make -f Makefile.atari
 #
 # stcmd mounts the current directory as /tmp inside the toolkit
-# container and runs there, so a plain in-tree build needs no
-# ST_WORKING_FOLDER.  Set it to a common parent only when a target
-# has to reach outside this repo (e.g. ../atarist-stdl later on).
+# container and runs there, so everything the build touches has to
+# live inside this repository. STDL does: extern/stdl is a submodule,
+# and libstdl.a is built from it automatically when it is missing.
+#
+#   git clone --recurse-submodules <url>     # fresh clone
+#   git submodule update --init              # existing clone
 #
 #   KOULES.TOS   the game
 #   BENCHX.TOS   16.16 fixed point simulation
 #   BENCHF.TOS   upstream float simulation, for comparison
-#
-# The game links against libstdl.a in a sibling checkout, which is
-# outside the directory stcmd mounts by default, so build it with the
-# common parent as the working folder:
-#
-#   ST_WORKING_FOLDER=$(realpath ..) STCMD_NO_TTY=1 \
-#     stcmd make -C atarist-koules -f Makefile.atari
-#
-# STDL=<path> overrides where libstdl.a and its headers are found.
 
 CC       = m68k-atari-mint-gcc
 STRIP    = m68k-atari-mint-strip
 NM       = m68k-atari-mint-nm
 
-STDL    ?= ../atarist-stdl
+# The submodule wins when it is present; a sibling checkout is the
+# fallback, so the library and the game can still be worked on
+# together. Override with STDL=<path>.
+STDL    ?= $(firstword $(wildcard extern/stdl) ../atarist-stdl)
+STDL_LIB = $(STDL)/libstdl.a
+
+# Cloning without --recurse-submodules leaves extern/stdl an empty
+# directory; say so rather than failing on a missing STDL.h.
+ifeq ($(wildcard $(STDL)/include),)
+ifeq ($(filter clean floatcheck,$(MAKECMDGOALS)),)
+$(error STDL not found in $(STDL) - run: git submodule update --init)
+endif
+endif
 
 # -m68000 is the correctness floor: a plain ST, no 020+ instructions.
 CFLAGS   = -O2 -m68000 -fomit-frame-pointer -std=gnu99 -Wall -Wextra \
@@ -36,7 +42,7 @@ LDFLAGS  = -Wl,--traditional-format,--stack=32768
 GAMEFLAGS = -O2 -m68000 -fomit-frame-pointer -std=gnu99 -Wall -Wextra \
             -Wno-unused-parameter -I. -Istdl -I$(STDL)/include \
             -DNODIRECT -DSTDLSUPPORT -DSOUND
-GAMELIBS  = $(STDL)/libstdl.a
+GAMELIBS  = $(STDL_LIB)
 # extra defines for the diagnostic build, e.g. DBGFLAGS='-DMAXACTIVE=16'
 DBGFLAGS ?=
 
@@ -59,6 +65,12 @@ assets: | $(DIST)
 
 $(DIST):
 	mkdir -p $(DIST)
+
+# Build the library from the submodule when its archive is missing,
+# so a fresh clone needs one command. An existing archive is left
+# alone - rebuild it deliberately with make -C $(STDL).
+$(STDL_LIB):
+	$(MAKE) -C $(STDL) libstdl.a
 
 $(DIST)/KOULES.TOS: $(GAMESRC) koules.h sound.h physics.h fixed.h gamedim.h \
                     stdl/interface.h stdl/font8x8.h text.h $(GAMELIBS) \

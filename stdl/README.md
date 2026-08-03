@@ -31,13 +31,20 @@ and the compositor (full repaint to dirty rectangles).
 
 ## Building
 
-Cross-compiles with `m68k-atari-mint-gcc` via
-[atarist-toolkit-docker](https://github.com/sidecartridge/atarist-toolkit-docker).
-The toolkit container only mounts the folder it starts in, so run it from the
-parent of both checkouts:
+STDL is a submodule at `extern/stdl`, pinned to a release tag, so clone with
+it:
 
 ```
-ST_WORKING_FOLDER=$(realpath ..) stcmd make -C atarist-koules -f Makefile.atari
+git clone --recurse-submodules https://github.com/neilrackett/atarist-koules.git
+```
+
+In a clone that already exists, `git submodule update --init` fetches it.
+The game then cross-compiles with `m68k-atari-mint-gcc` via
+[atarist-toolkit-docker](https://github.com/sidecartridge/atarist-toolkit-docker),
+in one command - `libstdl.a` is built from the submodule as part of it:
+
+```
+stcmd make -f Makefile.atari
 ```
 
 This produces `dist/KOULES.TOS` plus the converted sound assets. `dist/` doubles
