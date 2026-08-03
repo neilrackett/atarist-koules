@@ -785,14 +785,16 @@ update_forces (void)
  * coordinates and radius hoisted out of the inner loop.  In 16.16
  * dx*dx would overflow anyway.
  *
+ * Object is 44 bytes, so object[y] costs gcc 4.6 a __mulsi3 call
+ * per access on a 68000 -- which is why the pair test walks a
+ * pointer instead of indexing.
+ *
  * Measured dead end, do not retry without re-measuring: copying
- * the coordinates into parallel int arrays first, to dodge the
- * FIX2I shift and the 44-byte struct stride, made it *slower* on
- * an 8MHz ST -- 68.6ms/frame against 64.7 at n=20, 121.2 against
- * 112.9 at n=30.  Same checksums, so it was purely a
- * pessimisation.  gcc 4.6 already indexes object[] tolerably and
- * the extra arrays just cost a pass and more base pointers, which
- * is the effect atarist-stdl's AGENTS.md warns about.
+ * the coordinates into parallel int arrays first made it *slower*
+ * (68.6ms/frame against 64.7 at n=20) because the live flag still
+ * had to be read through the struct, so the pass was paid for and
+ * nothing was saved.  Same checksums, purely a pessimisation.
+ * atarist-stdl's AGENTS.md warns about exactly this.
  */
 void
 colisions (void)
@@ -805,146 +807,148 @@ colisions (void)
   for (i = 0; i < nobjects; i++)
     if (object[i].live)
       {
-	CONST int       xi = FIX2I (object[i].x);
-	CONST int       yi = FIX2I (object[i].y);
-	CONST int       ri = object[i].radius;
+	Object         *CONST oi = &object[i];
+	CONST int       xi = FIX2I (oi->x);
+	CONST int       yi = FIX2I (oi->y);
+	CONST int       ri = oi->radius;
 	CONST int       n = nobjects;
+	Object         *oy = &object[i + 1];
 
-	for (y = i + 1; y < n; y++)
-	  if (object[y].live)
+	for (y = i + 1; y < n; y++, oy++)
+	  if (oy->live)
 	    {
-	      int             dx = FIX2I (object[y].x) - xi;
-	      int             dy = FIX2I (object[y].y) - yi;
-	      int             rs = object[y].radius + ri;
+	      int             dx = FIX2I (oy->x) - xi;
+	      int             dy = FIX2I (oy->y) - yi;
+	      int             rs = oy->radius + ri;
 
 	      CNT (c_pairs);
 	      if (dx * dx + dy * dy < rs * rs)
 		{
 		  CNT (c_overlap);
-		  xp = object[y].x - object[i].x;
-		  yp = object[y].y - object[i].y;
+		  xp = oy->x - oi->x;
+		  yp = oy->y - oi->y;
 		  colize = 1;
-		  if (object[i].type == HOLE || object[i].type == EHOLE)
+		  if (oi->type == HOLE || oi->type == EHOLE)
 		    {
-		      if (object[y].type != APPLE)
+		      if (oy->type != APPLE)
 			destroy (y);
-		      if (object[i].type == EHOLE)
+		      if (oi->type == EHOLE)
 			destroy (i);
 		      continue;
 		    }
-		  if (object[y].type == HOLE || object[y].type == EHOLE)
+		  if (oy->type == HOLE || oy->type == EHOLE)
 		    {
-		      if (object[i].type != APPLE)
+		      if (oi->type != APPLE)
 			destroy (i);
-		      if (object[y].type == EHOLE)
+		      if (oy->type == EHOLE)
 			destroy (y);
 		      continue;
 		    }
-		  if (object[i].type == ROCKET)
+		  if (oi->type == ROCKET)
 		    {
-		      if (object[y].thief == 1 && object[i].thief == 1)
+		      if (oy->thief == 1 && oi->thief == 1)
 			{
 			  fix_t           tmp;
-			  tmp = object[i].M;
-			  object[i].M = object[y].M;
-			  object[y].M = tmp;
-			  object[i].thief = 0;
-			  object[y].thief = 0;
+			  tmp = oi->M;
+			  oi->M = oy->M;
+			  oy->M = tmp;
+			  oi->thief = 0;
+			  oy->thief = 0;
 			}
-		      if (object[y].type == BBALL && object[i].thief == 1)
+		      if (oy->type == BBALL && oi->thief == 1)
 			{
-			  object[i].M += object[y].M - M (BALL);
-			  object[i].thief = 0;
-			  object[y].M = M (BALL);
+			  oi->M += oy->M - M (BALL);
+			  oi->thief = 0;
+			  oy->M = M (BALL);
 			}
-		      else if (object[y].type == ROCKET
-			       && object[i].thief == 1)
+		      else if (oy->type == ROCKET
+			       && oi->thief == 1)
 			{
-			  object[i].M += object[y].M - M (ROCKET);
-			  object[i].accel += object[y].accel - ROCKET_SPEED;
-			  object[i].thief = 0;
-			  object[y].M = M (object[i].type);
-			  object[y].accel = ROCKET_SPEED - FIX (A_ADD);
+			  oi->M += oy->M - M (ROCKET);
+			  oi->accel += oy->accel - ROCKET_SPEED;
+			  oi->thief = 0;
+			  oy->M = M (oi->type);
+			  oy->accel = ROCKET_SPEED - FIX (A_ADD);
 			}
-		      if (object[i].type == ROCKET && object[y].thief == 1)
+		      if (oi->type == ROCKET && oy->thief == 1)
 			{
-			  object[y].M += object[i].M - M (ROCKET);
-			  object[y].accel += object[i].accel - ROCKET_SPEED;
-			  object[y].thief = 0;
-			  object[i].M = M (object[y].type);
-			  object[i].accel = ROCKET_SPEED - FIX (A_ADD);
+			  oy->M += oi->M - M (ROCKET);
+			  oy->accel += oi->accel - ROCKET_SPEED;
+			  oy->thief = 0;
+			  oi->M = M (oy->type);
+			  oi->accel = ROCKET_SPEED - FIX (A_ADD);
 			}
 		      if (gameplan == COOPERATIVE)
-			object[i].score++;
-		      if (object[y].letter == L_ACCEL)
-			object[i].accel += FIX (A_ADD),
-			  object[i].score += 10;
-		      if (object[y].letter == L_GUMM)
-			object[i].M += FIX (M_ADD),
-			  object[i].score += 10;
-		      if (object[y].letter == L_THIEF)
-			object[i].M = M (object[i].type),
-			  object[i].accel = ROCKET_SPEED - FIX (A_ADD),
-			  object[i].score -= 30;
-		      if (object[y].letter == L_FINDER)
+			oi->score++;
+		      if (oy->letter == L_ACCEL)
+			oi->accel += FIX (A_ADD),
+			  oi->score += 10;
+		      if (oy->letter == L_GUMM)
+			oi->M += FIX (M_ADD),
+			  oi->score += 10;
+		      if (oy->letter == L_THIEF)
+			oi->M = M (oi->type),
+			  oi->accel = ROCKET_SPEED - FIX (A_ADD),
+			  oi->score -= 30;
+		      if (oy->letter == L_FINDER)
 			{
-			  object[i].accel += FIX (A_ADD) * (KRAND_N (5));
-			  object[i].M += FIX (M_ADD) * (KRAND_N (10));
-			  object[i].score += 30;
+			  oi->accel += FIX (A_ADD) * (KRAND_N (5));
+			  oi->M += FIX (M_ADD) * (KRAND_N (10));
+			  oi->score += 30;
 			}
-		      if (object[y].letter == L_TTOOL)
+		      if (oy->letter == L_TTOOL)
 			{
-			  object[i].thief = 1;
-			  object[i].score += 30;
+			  oi->thief = 1;
+			  oi->score += 30;
 			}
 
-		      object[y].letter = ' ';
-		      if (object[y].type == LBALL)
-			object[y].type = BALL;
-		      if (object[y].type == BALL && dosprings
+		      oy->letter = ' ';
+		      if (oy->type == LBALL)
+			oy->type = BALL;
+		      if (oy->type == BALL && dosprings
 			  && !(KRAND_N (randsprings)))
-			object[y].lineto = i;
+			oy->lineto = i;
 
-		      if (gameplan == DEATHMATCH && object[y].type == ROCKET
+		      if (gameplan == DEATHMATCH && oy->type == ROCKET
 			  && dosprings && !(KRAND_N ((2 * randsprings))))
-			object[y].lineto = i;
+			oy->lineto = i;
 		    }
-		  if (object[y].type == LUNATIC)
+		  if (oy->type == LUNATIC)
 		    {
 		      gummfactor = -fixdiv (ROCKETM, LUNATICM);
 		    }
-		  else if (object[i].type == LUNATIC)
+		  else if (oi->type == LUNATIC)
 		    {
 		      gummfactor = -fixdiv (LUNATICM, ROCKETM);
 		    }
 		  else
-		    gummfactor = fixdiv (object[i].M, object[y].M);
+		    gummfactor = fixdiv (oi->M, oy->M);
 		  {
 		    fix_t           nx = xp, ny = yp;
 		    fix_normalize (&nx, &ny, fixmul (gummfactor, GUMM));
-		    object[y].fx += nx;
-		    object[y].fy += ny;
+		    oy->fx += nx;
+		    oy->fy += ny;
 		  }
 		  {
 		    fix_t           nx = xp, ny = yp;
 		    fix_normalize (&nx, &ny,
 				   fixdiv (GUMM, gummfactor));
-		    object[i].fx -= nx;
-		    object[i].fy -= ny;
+		    oi->fx -= nx;
+		    oi->fy -= ny;
 		  }
-		  if (object[i].type == ROCKET && object[i].time)
-		    object[i].fx = 0,
-		      object[i].fy = 0;
-		  if (object[y].type == ROCKET && object[y].time)
-		    object[y].fx = 0,
-		      object[y].fy = 0;
-		  if (object[y].type == INSPECTOR
-		      && object[i].type == ROCKET)
+		  if (oi->type == ROCKET && oi->time)
+		    oi->fx = 0,
+		      oi->fy = 0;
+		  if (oy->type == ROCKET && oy->time)
+		    oy->fx = 0,
+		      oy->fy = 0;
+		  if (oy->type == INSPECTOR
+		      && oi->type == ROCKET)
 		    {
-		      object[y].fx = 0,
-			object[y].fy = 0;
-		      object[i].fx *= -2,
-			object[i].fy *= -2;
+		      oy->fx = 0,
+			oy->fy = 0;
+		      oi->fx *= -2,
+			oi->fy *= -2;
 		    }
 		}
 	    }

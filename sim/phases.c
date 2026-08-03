@@ -54,7 +54,9 @@ TICKS (void)
 #endif
 
 #define FRAMES 400
+#ifndef N
 #define N      20
+#endif
 
 /* phase mask */
 #define P_VALUES 1

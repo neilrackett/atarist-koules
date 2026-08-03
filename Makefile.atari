@@ -29,7 +29,7 @@ DIST     = dist
 SIMSRC   = sim/bench.c sim/scenario.c krand.c
 FIXSRC   = physics.c fixed.c sintab.c
 
-all: $(DIST)/BENCHX.TOS $(DIST)/BENCHF.TOS $(DIST)/PHASEX.TOS $(DIST)/PHASEF.TOS
+all: $(DIST)/BENCHX.TOS $(DIST)/BENCHF.TOS $(DIST)/PHASEX.TOS $(DIST)/PHASEF.TOS $(DIST)/PHASE30.TOS
 
 $(DIST):
 	mkdir -p $(DIST)
@@ -42,6 +42,9 @@ $(DIST)/BENCHF.TOS: $(SIMSRC) sim/physics_float.c koules.h physics.h gamedim.h |
 
 $(DIST)/PHASEX.TOS: sim/phases.c sim/scenario.c krand.c $(FIXSRC) koules.h physics.h fixed.h gamedim.h | $(DIST)
 	$(CC) $(CFLAGS) $(LDFLAGS) -o $@ sim/phases.c sim/scenario.c krand.c $(FIXSRC)
+
+$(DIST)/PHASE30.TOS: sim/phases.c sim/scenario.c krand.c $(FIXSRC) koules.h physics.h fixed.h gamedim.h | $(DIST)
+	$(CC) $(CFLAGS) $(LDFLAGS) -DN=30 -o $@ sim/phases.c sim/scenario.c krand.c $(FIXSRC)
 
 $(DIST)/PHASEF.TOS: sim/phases.c sim/scenario.c krand.c sim/physics_float.c koules.h physics.h gamedim.h | $(DIST)
 	$(CC) $(CFLAGS) $(LDFLAGS) -DKOULES_FLOAT -o $@ sim/phases.c sim/scenario.c krand.c sim/physics_float.c -lm
@@ -77,6 +80,6 @@ floatcheck:
 	@rm -rf $(DIST)/objcheck $(DIST)/objcheckf
 
 clean:
-	rm -f $(DIST)/BENCHX.TOS $(DIST)/BENCHF.TOS $(DIST)/PHASEX.TOS $(DIST)/PHASEF.TOS
+	rm -f $(DIST)/BENCHX.TOS $(DIST)/BENCHF.TOS $(DIST)/PHASEX.TOS $(DIST)/PHASEF.TOS $(DIST)/PHASE30.TOS
 
 .PHONY: all clean floatcheck
