@@ -20,8 +20,10 @@
  ************************LT*********************************/
 
 #include "koules.h"
+#ifdef NETSUPPORT
 #include "net.h"
 #include "client.h"
+#endif
 #ifdef JOYSTICK
 #include <sys/ioctl.h>
 #endif

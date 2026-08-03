@@ -1,0 +1,82 @@
+# Atari ST cross build.
+#
+#   STCMD_NO_TTY=1 stcmd make -f Makefile.atari
+#
+# stcmd mounts the current directory as /tmp inside the toolkit
+# container and runs there, so a plain in-tree build needs no
+# ST_WORKING_FOLDER.  Set it to a common parent only when a target
+# has to reach outside this repo (e.g. ../atarist-stdl later on).
+#
+# Phase 1 builds the headless physics benchmark only: no graphics
+# backend exists yet, and the point of these binaries is to time
+# the simulation on an 8MHz 68000 before committing to the port.
+#
+#   BENCHX.TOS   16.16 fixed point simulation
+#   BENCHF.TOS   upstream float simulation, for comparison
+
+CC       = m68k-atari-mint-gcc
+STRIP    = m68k-atari-mint-strip
+NM       = m68k-atari-mint-nm
+
+# -m68000 is the correctness floor: a plain ST, no 020+ instructions.
+CFLAGS   = -O2 -m68000 -fomit-frame-pointer -std=gnu99 -Wall -Wextra \
+           -Wno-unused-parameter -I. -Isim
+# Hatari GEMDOS-mounts the program's directory as a hard disk, and
+# the default stack is too small for that path.
+LDFLAGS  = -Wl,--traditional-format,--stack=32768
+
+DIST     = dist
+SIMSRC   = sim/bench.c sim/scenario.c krand.c
+FIXSRC   = physics.c fixed.c sintab.c
+
+all: $(DIST)/BENCHX.TOS $(DIST)/BENCHF.TOS $(DIST)/PHASEX.TOS $(DIST)/PHASEF.TOS
+
+$(DIST):
+	mkdir -p $(DIST)
+
+$(DIST)/BENCHX.TOS: $(SIMSRC) $(FIXSRC) koules.h physics.h fixed.h gamedim.h | $(DIST)
+	$(CC) $(CFLAGS) $(LDFLAGS) -o $@ $(SIMSRC) $(FIXSRC)
+
+$(DIST)/BENCHF.TOS: $(SIMSRC) sim/physics_float.c koules.h physics.h gamedim.h | $(DIST)
+	$(CC) $(CFLAGS) $(LDFLAGS) -DKOULES_FLOAT -o $@ $(SIMSRC) sim/physics_float.c -lm
+
+$(DIST)/PHASEX.TOS: sim/phases.c sim/scenario.c krand.c $(FIXSRC) koules.h physics.h fixed.h gamedim.h | $(DIST)
+	$(CC) $(CFLAGS) $(LDFLAGS) -o $@ sim/phases.c sim/scenario.c krand.c $(FIXSRC)
+
+$(DIST)/PHASEF.TOS: sim/phases.c sim/scenario.c krand.c sim/physics_float.c koules.h physics.h gamedim.h | $(DIST)
+	$(CC) $(CFLAGS) $(LDFLAGS) -DKOULES_FLOAT -o $@ sim/phases.c sim/scenario.c krand.c sim/physics_float.c -lm
+
+# Proof that no floating point survives in the fixed build: gcc
+# emits calls to these libgcc soft-float helpers for every float
+# or double operation, so their absence from the symbol table is a
+# hard check, not an eyeball one.
+# --traditional-format drops the symbol table, so the check runs
+# against the objects, where every soft-float helper the compiler
+# needs still shows up as an undefined symbol.
+FLOATSYMS = '__(add|sub|mul|div|neg|cmp|eq|ne|lt|le|gt|ge)[sd]f|__float|__fix[usm]|__extend[sd]f|__trunc[sd]f|__[a-z]*sf3|__[a-z]*df3'
+
+floatcheck:
+	@rm -rf $(DIST)/objcheck && mkdir -p $(DIST)/objcheck
+	@for f in $(SIMSRC) $(FIXSRC); do \
+	   o=$(DIST)/objcheck/`basename $$f .c`.o; \
+	   $(CC) $(CFLAGS) -c -o $$o $$f; \
+	 done
+	@echo "--- soft float / libm references in the FIXED build (expect none) ---"
+	@$(NM) -u $(DIST)/objcheck/*.o | sort -u | \
+	   grep -E $(FLOATSYMS)'|^ *U (sqrt|sin|cos|atan|hypot|pow|fabs)$$' \
+	   && (echo "FAIL: floating point survives"; exit 1) \
+	   || echo "  none - clean"
+	@rm -rf $(DIST)/objcheckf && mkdir -p $(DIST)/objcheckf
+	@for f in $(SIMSRC) sim/physics_float.c; do \
+	   o=$(DIST)/objcheckf/`basename $$f .c`.o; \
+	   $(CC) $(CFLAGS) -DKOULES_FLOAT -c -o $$o $$f; \
+	 done
+	@echo "--- same for the FLOAT reference build (expect many) ---"
+	@$(NM) -u $(DIST)/objcheckf/*.o | sort -u | \
+	   grep -E $(FLOATSYMS)'|^ *U (sqrt|sin|cos|atan|hypot|pow|fabs)$$' | sed 's/^/  /'
+	@rm -rf $(DIST)/objcheck $(DIST)/objcheckf
+
+clean:
+	rm -f $(DIST)/BENCHX.TOS $(DIST)/BENCHF.TOS $(DIST)/PHASEX.TOS $(DIST)/PHASEF.TOS
+
+.PHONY: all clean floatcheck

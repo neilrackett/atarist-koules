@@ -1,3 +1,0 @@
-#	simple conversion .raw to .au files-add audio header
-cat auhead >$2
-cat $1>>$2

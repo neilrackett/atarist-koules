@@ -9,3 +9,7 @@ koules.sndsrv.linux
 koules.svga
 koules.sdl
 xkoules
+dist/
+tests/hatari/out/
+sim/dumpf
+sim/dumpx

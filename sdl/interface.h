@@ -43,13 +43,9 @@ extern VScreenType background;
 extern VScreenType backscreen;
 extern VScreenType starbackground;
 
-extern int      GAMEWIDTH;
-extern int      GAMEHEIGHT;
-extern int      MAPWIDTH;
-extern int      MAPHEIGHT;
-extern int      DIV;
+#include "gamedim.h"
 
-#define EYE_RADIUS (DIV==1?5:6)
+#define EYE_RADIUS 6            /* DIV == 2 */
 #define MOUSE_RADIUS 4
 
 RawBitmapType   CreateBitmap (const int, const int);

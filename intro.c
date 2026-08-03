@@ -72,12 +72,12 @@ koulescreator (CONST int r)
       y1 = (MAPHEIGHT / 2 - +cos (RAD (i)) * r);
       for (z1 = 0; z1 < BALL_RADIUS * BALL_RADIUS * M_PI / DIV / DIV; z1++)
 	{
-	  x = rand () % GAMEWIDTH;
-	  y = rand () % GAMEHEIGHT;
+	  x = KRAND_N (GAMEWIDTH);
+	  y = KRAND_N (GAMEHEIGHT);
 	  addpoint (x * 256 * DIV, y * 256 * DIV,
 		    (x1 - x) * 256 / (time) * DIV,
 		    (y1 - y) * 256 / (time) * DIV,
-		    ball (rand () % 32),
+		    ball (KRAND_N (32)),
 		    time);
 	}
     }
@@ -91,12 +91,12 @@ starcreator ()
   Effect (S_CREATOR1, next);
   for (z = 0; z < ROCKET_RADIUS * ROCKET_RADIUS * M_PI / DIV / DIV; z++)
     {
-      x = rand () % GAMEWIDTH;
-      y = rand () % GAMEHEIGHT;
+      x = KRAND_N (GAMEWIDTH);
+      y = KRAND_N (GAMEHEIGHT);
       addpoint (x * 256 * DIV, y * 256 * DIV,
 		(MAPWIDTH / 2 - x) * 256 / (time) * DIV,
 		(MAPHEIGHT / 2 - y) * 256 / (time) * DIV,
-		(rand () % 32),
+		(KRAND_N (32)),
 		time);
     }
 }
@@ -381,12 +381,12 @@ staraccel (CONST float x1, CONST float y1, CONST float r)
   for (y = 0; y < 5 / DIV / DIV; y++)
     {
       float           p;
-      p = RAD (rand () % 45 - 22);
+      p = RAD (KRAND_N (45) - 22);
       addpoint (x1 * 256,
 		y1 * 256,
-		(-sin (r + p) * 0.08 * 10) * (rand () % 512),
-		(-cos (r + p) * 0.08 * 10) * (rand () % 512),
-		rocket (rand () % 16), 30);
+		(-sin (r + p) * 0.08 * 10) * (KRAND_N (512)),
+		(-cos (r + p) * 0.08 * 10) * (KRAND_N (512)),
+		rocket (KRAND_N (16)), 30);
     }
 }
 void

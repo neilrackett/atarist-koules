@@ -24,9 +24,11 @@
 #include <SDL_gfxPrimitives_font.h>
 
 #include "../koules.h"
+#ifdef NETSUPPORT
 #include "../server.h"
 #include "../client.h"
 #include "../net.h"
+#endif
 #include "../framebuffer.h"
 
 /* TODO: move these to a common header. */
@@ -35,14 +37,6 @@ extern void     game ();
 extern void     setcustompalette (int, float);
 
 /* Game plan. */
-#define WIDTH 640
-#define HEIGHT 460
-#define DIVISOR 1
-int             DIV = DIVISOR;
-int             MAPWIDTH = WIDTH;
-int             MAPHEIGHT = HEIGHT;
-int             GAMEWIDTH = WIDTH * DIVISOR;
-int             GAMEHEIGHT = HEIGHT * DIVISOR;
 
 SDL_Surface    *sdl_screen = NULL;
 
@@ -158,6 +152,7 @@ initialize (void)
   return 0;
 }
 
+#ifdef NETSUPPORT
 static void
 uninitializes (int num)
 {
@@ -166,6 +161,7 @@ uninitializes (int num)
   uninitialize ();
   exit (1);
 }
+#endif
 
 /* Start the ball rolling. */
 int
@@ -254,27 +250,11 @@ main (int argc, char *argv[])
 	  DIV = 2;
 	  break;
 #endif
-	case 's':
-	  GAMEWIDTH = 640;
-	  GAMEHEIGHT = 360;
-	  MAPWIDTH = 320;
-	  MAPHEIGHT = 180;
-	  DIV = 2;
+	case 's':		/* the only geometry we build - see gamedim.h */
 	  break;
 	case 'l':
-	  if (GAMEHEIGHT == 360)
-	    GAMEHEIGHT = MAPHEIGHT = 360;
-	  else
-	    MAPHEIGHT = GAMEHEIGHT = 460;
-	  GAMEWIDTH = 640;
-	  MAPWIDTH = 640;
-	  DIV = 1;
-	  break;
 	case 'x':
-	  GAMEWIDTH = 640;
-	  GAMEHEIGHT = 440;
-	  MAPWIDTH = 320;
-	  MAPHEIGHT = 220;
+	  printf ("Only the 320x200 (-s) display is compiled in\n");
 	  break;
 #ifdef MOUSE
 	case 'M':
@@ -338,9 +318,6 @@ main (int argc, char *argv[])
       signal (SIGBUS, uninitializes);
       signal (SIGIOT, uninitializes);
       signal (SIGILL, uninitializes);
-      MAPWIDTH = GAMEWIDTH / DIV;
-      MAPHEIGHT = GAMEHEIGHT / DIV;
-
     }
 #endif
 

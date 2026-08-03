@@ -53,6 +53,17 @@ extern void     myusleep (unsigned long);
 
 extern int      nomouse;
 #include <interface.h>
+#include "krand.h"
+
+/*
+ * Upstream calls rand() a hundred-odd times a frame and mintlib's
+ * costs 2450 cycles a call on a 68000 (measured -- see krand.h).
+ * Redirect the lot; nothing in the game needs a better generator
+ * than a xorshift.  rand()%N is redirected too, because the 32 bit
+ * modulo is its own ~1000 cycle library call.
+ */
+#define rand()  krand ()
+#define srand(s) ksrand ((unsigned long) (s))
 
 #define MENUTIME 5
 
@@ -69,8 +80,20 @@ extern int      nomouse;
 
 
 
+/*
+ * Angles.  The reference build keeps upstream's radians so it can
+ * be diffed against the original; the ST build makes RAD() the
+ * identity and works in whole degrees, indexing a sine table.
+ * ROTSTEP stays exactly 10 degrees either way, so a rocket still
+ * has exactly 36 headings.
+ */
+#ifdef KOULES_FLOAT
 #define RAD(n)  ((float)(n)/180.0*M_PI)
 #define ROTSTEP RAD(10)
+#else
+#define RAD(n)  (n)
+#define ROTSTEP 10
+#endif
 
 
 #define BALL_RADIUS 8
@@ -103,7 +126,16 @@ extern int      nomouse;
 
 
 #define MAXOBJECT 255
-#define MAXPOINT (4000)
+/*
+ * Was 4000, and every frame walked all 4000 slots whether or not
+ * they held anything: 36.75ms on an 8MHz ST, measured, against a
+ * 40ms frame budget.  point[] is now a compacted active list --
+ * point[0..npoint) are the live ones -- so the sweep costs what
+ * the particles cost.  512 is enough for two simultaneous
+ * explosions plus rocket exhaust; beyond that the oldest slot is
+ * recycled, which is what upstream's rotating cursor did anyway.
+ */
+#define MAXPOINT (512)
 #define MAXROCKETS 5
 
 
@@ -152,6 +184,31 @@ extern int      nomouse;
 #define next			/*((++cit)>=NTRACKS?cit=1:cit) */
 
 
+/*
+ * oval_t is every scalar the simulation carries.  The ST build
+ * makes it 16.16 fixed point; -DKOULES_FLOAT restores upstream's
+ * float so the two can be run side by side (see sim/).
+ */
+#ifdef KOULES_FLOAT
+typedef float   oval_t;
+#define OVAL(f)   ((oval_t)(f))          /* compile-time literal */
+#define OVI(i)    ((oval_t)(i))          /* runtime int */
+#define OVDIV(a,b) ((oval_t)(a) / (oval_t)(b))
+#define OVMULDIV(v,a,b) ((oval_t)((v) * (double)(a) / (b)))
+#define OV2D(v)   ((double)(v))
+#define OVROT     float
+#else
+#include "fixed.h"
+typedef fix_t   oval_t;
+#define OVAL(f)   FIX(f)                 /* compile-time literal */
+#define OVI(i)    FIXI(i)                /* runtime int */
+#define OVDIV(a,b) (FIXI(a) / (b))
+/* v * a / b with a,b small integers; no 64 bit, no float */
+#define OVMULDIV(v,a,b) ((fix_t)(((v) / (b)) * (a) + ((((v) % (b)) * (a)) / (b))))
+#define OV2D(v)   ((double)(v) / 65536.0)
+#define OVROT     int
+#endif
+
 typedef struct
   {
     int             type;
@@ -161,15 +218,16 @@ typedef struct
     int             time;
     int             score;
     int             lineto;
-    float           x;
-    float           y;
-    float           fx;		/*forces */
-    float           fy;
-    float           rotation;	/*for rockets */
+    oval_t          x;
+    oval_t          y;
+    oval_t          fx;		/*forces */
+    oval_t          fy;
+    OVROT           rotation;	/*for rockets: radians, or whole
+				  degrees in the fixed point build */
     int             live1;	/*backup for rockets */
-    float           M;
+    oval_t          M;
     int             radius;
-    float           accel;
+    oval_t          accel;
     char            letter;
 /* B ****LT**** */
 #ifdef JOYSTICK
@@ -211,19 +269,19 @@ struct control
     int             mask;
   };
 #ifndef VARIABLES_HERE
-extern float    ROCKET_SPEED;
-extern float    BALL_SPEED;
-extern float    BBALL_SPEED;
-extern float    SLOWDOWN;
-extern float    GUMM;
+extern oval_t   ROCKET_SPEED;
+extern oval_t   BALL_SPEED;
+extern oval_t   BBALL_SPEED;
+extern oval_t   SLOWDOWN;
+extern oval_t   GUMM;
 
-extern float    BALLM;
-extern float    LBALLM;
-extern float    BBALLM;
-extern float    APPLEM;
-extern float    INSPECTORM;
-extern float    LUNATICM;
-extern float    ROCKETM;
+extern oval_t   BALLM;
+extern oval_t   LBALLM;
+extern oval_t   BBALLM;
+extern oval_t   APPLEM;
+extern oval_t   INSPECTORM;
+extern oval_t   LUNATICM;
+extern oval_t   ROCKETM;
 
 
 extern int      dosprings;
@@ -289,21 +347,11 @@ extern unsigned char rocketcolor[5];
 
 #endif
 
-#if defined(__GNUC__)&&!defined(ONLYANSI)
-extern inline void
-normalize (float *x, float *y, CONST float size)
-{
-  float           length = sqrt ((*x) * (*x) + (*y) * (*y));
-  if (length == 0)
-    length = 1;
-  *x *= size / length;
-  *y *= size / length;
-}
-#else
-extern void     normalize (float *, float *, CONST float);
-#endif
 
 extern void     addpoint (CONST int, CONST int, CONST int, CONST int, CONST int, CONST int);
+extern void     accel (CONST int, CONST oval_t);
+extern void     creators_points (int, int, int, int);
+extern void     explosion (CONST int, CONST int, CONST int, CONST int, CONST int);
 extern void     destroy (CONST int);
 extern void     creator (CONST int);
 extern void     creator_rocket (CONST int);
@@ -339,19 +387,10 @@ extern void     fadein ();
 extern void     load_rc ();
 extern void     save_rc ();
 extern int      allow_finder ();
-#if defined(__GNUC__)&&!defined(ONLYANSI)
-extern int
-find_possition (float *, float *, CONST float)
-                __attribute ((const));
-     extern int      radius (CONST int) __attribute ((const));
-     extern float    M (CONST int) __attribute ((const));
-     extern int      create_letter () __attribute ((const));
-#else
-extern int      find_possition (float *, float *, CONST float);
+extern int      find_possition (oval_t *, oval_t *, CONST int);
 extern int      radius (CONST int);
-extern float    M (CONST int);
-extern int      create_letter ();
-#endif
+extern oval_t   M (CONST int);
+extern int      create_letter (void);
 #ifndef NETSUPPORT
 #define client 0
 #define server 0

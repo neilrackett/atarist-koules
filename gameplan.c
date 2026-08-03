@@ -19,7 +19,9 @@
  ***********************************************************/
 
 #include "koules.h"
+#ifdef NETSUPPORT
 #include "server.h"
+#endif
 #define HOLELEVEL 5
 #define BBALLLEVEL (nrockets==1?12:10)
 #define EHOLELEVEL 20
@@ -220,8 +222,14 @@ init_objects1 ()
 	  if (level > SPRINGLEVEL)
 	    dosprings = 1;
 	  randsprings = 40 - level / 3;
-	  nobjects = 3 + sqrt (level) * ((nrockets + 1) / 2) + 2 * nrockets;
-	  nobjects = (float) nobjects *(GAMEWIDTH / 640 * GAMEHEIGHT / 460 + 2) / 3;
+	  /* integer sqrt: the result was truncated to int anyway.
+	     The second line is a no-op at 640x360 -- GAMEWIDTH/640 is
+	     1 and GAMEHEIGHT/460 is 0 in integer maths, so the factor
+	     is (1*0 + 2)/3, which upstream evaluated in float as 2/3.
+	     Kept explicit so the value is not an accident. */
+	  nobjects = 3 + (int) isqrt32 ((ufix_t) level) * ((nrockets + 1) / 2)
+	    + 2 * nrockets;
+	  nobjects = nobjects * 2 / 3;
 	  if (nobjects > 30)
 	    nobjects = 30;
 	  for (i = 0; i < nobjects; i++)
@@ -242,10 +250,13 @@ init_objects1 ()
 	      object[i].M = M (object[i].type);
 	      if (i < nrockets)
 		{
+		  /* was M *= 1.0 + (5-level)/15.0 and 1.0 + level/120.0;
+		     the same ratios as integer numerator/denominator so
+		     no float is needed and no precision is lost */
 		  if (level < 5)
-		    object[i].M *= 1.0 + (5.0 - level) / 15.0;
+		    object[i].M += OVMULDIV (object[i].M, 5 - level, 15);
 		  if (level < 25)
-		    object[i].M *= 1.0 + (level) / 120.0;
+		    object[i].M += OVMULDIV (object[i].M, level, 120);
 		}
 	      object[i].radius = radius (object[i].type);
 	      object[i].accel = ROCKET_SPEED;
@@ -267,8 +278,8 @@ init_objects1 ()
 	  object[nrockets].live = (i < nrockets ? 5 : 1);
 	  object[nrockets].fx = 0;
 	  object[nrockets].fy = 0;
-	  object[nrockets].x = GAMEWIDTH / 2;
-	  object[nrockets].y = GAMEHEIGHT / 2;
+	  object[nrockets].x = OVI (GAMEWIDTH / 2);
+	  object[nrockets].y = OVI (GAMEHEIGHT / 2);
 	  for (i = 0; i < nrockets; i++)
 	    {
 	      object[i].live = 5;
@@ -284,8 +295,13 @@ init_objects1 ()
 	      object[i].M = M (object[i].type);
 	      object[i].radius = radius (object[i].type);
 	      object[i].letter = ' ';
-	      object[i].x = GAMEWIDTH / 2 + sin (i * RAD (360) / nrockets) * GAMEHEIGHT / 3;
-	      object[i].x = GAMEHEIGHT / 2 + cos (i * RAD (360) / nrockets) * GAMEHEIGHT / 3;
+	      /* NB the second line assigns .x again -- upstream typo,
+	         preserved.  RAD() is now degrees, so 360/nrockets is
+	         an exact table index. */
+	      object[i].x = OVI (GAMEWIDTH / 2)
+		+ fixmul (fixsin (i * 360 / nrockets), OVI (GAMEHEIGHT / 3));
+	      object[i].x = OVI (GAMEHEIGHT / 2)
+		+ fixmul (fixcos (i * 360 / nrockets), OVI (GAMEHEIGHT / 3));
 	    }
 	  for (i = nrockets + 1; i < nobjects; i++)
 	    {
@@ -315,75 +331,75 @@ init_objects ()
   switch (difficulty)
     {
     case 0:
-      ROCKET_SPEED = 0.8;
-      BALL_SPEED = 1.2;
-      BBALL_SPEED = 1.2;
-      SLOWDOWN = 0.9;
-      GUMM = 20;
+      ROCKET_SPEED = OVAL (0.8);
+      BALL_SPEED = OVAL (1.2);
+      BBALL_SPEED = OVAL (1.2);
+      SLOWDOWN = OVAL (0.9);
+      GUMM = OVAL (20);
 
 
-      BALLM = 3;
-      LBALLM = 3;
-      BBALLM = 8;
-      APPLEM = 40;
-      ROCKETM = 2;
+      BALLM = OVAL (3);
+      LBALLM = OVAL (3);
+      BBALLM = OVAL (8);
+      APPLEM = OVAL (40);
+      ROCKETM = OVAL (2);
       break;
     case 1:
-      ROCKET_SPEED = 1.0;
-      BALL_SPEED = 1.2;
-      BBALL_SPEED = 1.2;
-      SLOWDOWN = 0.9;
-      GUMM = 20;
+      ROCKET_SPEED = OVAL (1.0);
+      BALL_SPEED = OVAL (1.2);
+      BBALL_SPEED = OVAL (1.2);
+      SLOWDOWN = OVAL (0.9);
+      GUMM = OVAL (20);
 
 
-      BALLM = 3;
-      LBALLM = 3;
-      BBALLM = 8;
-      APPLEM = 40;
-      ROCKETM = 4;
+      BALLM = OVAL (3);
+      LBALLM = OVAL (3);
+      BBALLM = OVAL (8);
+      APPLEM = OVAL (40);
+      ROCKETM = OVAL (4);
 
       break;
     case 2:
-      ROCKET_SPEED = 1.2;
-      BALL_SPEED = 1.2;
-      BBALL_SPEED = 1.2;
-      SLOWDOWN = 0.8;
-      GUMM = 20;
+      ROCKET_SPEED = OVAL (1.2);
+      BALL_SPEED = OVAL (1.2);
+      BBALL_SPEED = OVAL (1.2);
+      SLOWDOWN = OVAL (0.8);
+      GUMM = OVAL (20);
 
 
-      APPLEM = 34;
-      BALLM = 3;
-      LBALLM = 3;
-      BBALLM = 8;
-      ROCKETM = 4;
+      APPLEM = OVAL (34);
+      BALLM = OVAL (3);
+      LBALLM = OVAL (3);
+      BBALLM = OVAL (8);
+      ROCKETM = OVAL (4);
       break;
     case 3:
-      ROCKET_SPEED = 2.0;
-      BALL_SPEED = 1.2;
-      BBALL_SPEED = 1.2;
-      SLOWDOWN = 0.8;
-      GUMM = 20;
+      ROCKET_SPEED = OVAL (2.0);
+      BALL_SPEED = OVAL (1.2);
+      BBALL_SPEED = OVAL (1.2);
+      SLOWDOWN = OVAL (0.8);
+      GUMM = OVAL (20);
 
 
-      BALLM = 3;
-      LBALLM = 3;
-      APPLEM = 24;
-      BBALLM = 8;
-      ROCKETM = 5;
+      BALLM = OVAL (3);
+      LBALLM = OVAL (3);
+      APPLEM = OVAL (24);
+      BBALLM = OVAL (8);
+      ROCKETM = OVAL (5);
       break;
     case 4:
-      ROCKET_SPEED = 2.0;
-      BALL_SPEED = 1.2;
-      BBALL_SPEED = 1.2;
-      SLOWDOWN = 0.8;
-      GUMM = 15;
+      ROCKET_SPEED = OVAL (2.0);
+      BALL_SPEED = OVAL (1.2);
+      BBALL_SPEED = OVAL (1.2);
+      SLOWDOWN = OVAL (0.8);
+      GUMM = OVAL (15);
 
 
-      BALLM = 3;
-      LBALLM = 3;
-      APPLEM = 24;
-      BBALLM = 8;
-      ROCKETM = 7;
+      BALLM = OVAL (3);
+      LBALLM = OVAL (3);
+      APPLEM = OVAL (24);
+      BBALLM = OVAL (8);
+      ROCKETM = OVAL (7);
 
 
     }
@@ -421,21 +437,21 @@ create_letter ()
   int             i;
   if (gameplan == COOPERATIVE)
     {
-      i = rand () % 4;
+      i = KRAND_N (4);
       if (i < 3)
 	return (i);
-      if (level > THIEFLEVEL && rand () % 400 < level - THIEFLEVEL + 40)
+      if (level > THIEFLEVEL && KRAND_N (400) < level - THIEFLEVEL + 40)
 	return (3);
-      if (level > TTOOLLEVEL && rand () % 600 < level - TTOOLLEVEL + 40)
+      if (level > TTOOLLEVEL && KRAND_N (600) < level - TTOOLLEVEL + 40)
 	return (5);
-      if (level > FINDERLEVEL && gtime < 0 && rand () % 700 < level - FINDERLEVEL + 40)
+      if (level > FINDERLEVEL && gtime < 0 && KRAND_N (700) < level - FINDERLEVEL + 40)
 	return (4);
       return (0);
     }
-  chance = rand () % 100;
+  chance = KRAND_N (100);
   if (chance < 80)
     {				/* create letter : = 1 rand / 2 */
-      tirage = rand () % 100;
+      tirage = KRAND_N (100);
       if (tirage < 30)
 	letter = 1;
       else if (tirage < 60)
@@ -503,7 +519,7 @@ update_game ()
 	  case DEATHMATCH:
 	    if (nrockets == 1)
 	      {
-		if (!(rand () % 60))
+		if (!(KRAND_N (60)))
 		  creator (HOLE);
 		if (a_rockets == 0)
 		  {
@@ -521,19 +537,19 @@ update_game ()
 	      }
 	    if (a_balls == 0)
 	      secondpart = 1;
-	    if (a_lunatics < nrockets && !(rand () % 150))
+	    if (a_lunatics < nrockets && !(KRAND_N (150)))
 	      creator (LUNATIC);
 	    if (secondpart)
 	      {
-		if (!(rand () % 100))
+		if (!(KRAND_N (100)))
 		  creator (BBALL);
-		if (!(rand () % 60))
+		if (!(KRAND_N (60)))
 		  creator (HOLE);
-		if (!(rand () % 400))
+		if (!(KRAND_N (400)))
 		  creator (BBALL);
-		if (!(rand () % 400))
+		if (!(KRAND_N (400)))
 		  creator (INSPECTOR);
-		if (!(rand () % 600))
+		if (!(KRAND_N (600)))
 		  creator (EHOLE);
 	      }
 
@@ -552,13 +568,13 @@ update_game ()
 		if (!a_apples)
 		  ktime = 50, kmode = 2;
 		if (a_balls < 15)
-		  if (!(rand () % 40))
+		  if (!(KRAND_N (40)))
 		    creator (BALL);
 		/*if (a_lunatics < 3)
-		   if (!(rand () % 90))
+		   if (!(KRAND_N (90)))
 		   creator (LUNATIC); */
 		if (a_bballs < 3)
-		  if (!(rand () % 3000))
+		  if (!(KRAND_N (3000)))
 		    creator (BBALL);
 	      }
 	    else
@@ -569,23 +585,23 @@ update_game ()
 		    ktime = 50, kmode = 3;
 		  }
 		if (a_balls < 4 * level && gtime < 0)
-		  if (!(rand () % ((nrockets == 1 ? 200 : 150) + (110 - level))))
+		  if (!(KRAND_N (((nrockets == 1 ? 200 : 150) + (110 - level)))))
 		    creator (BALL);
 		if (a_lunatics < (level - LUNATICLEVEL) && a_lunatics < 3 && gtime < 0)
-		  if (!(rand () % ((nrockets == 1 ? 800 : 450) + (110 - level))))
+		  if (!(KRAND_N (((nrockets == 1 ? 800 : 450) + (110 - level)))))
 		    creator (LUNATIC);
 
 		if (a_holes < 4 * (level - HOLELEVEL) && gtime < 0)
-		  if (!(rand () % (412 + 512 / level)))
+		  if (!(KRAND_N ((412 + 512 / level))))
 		    creator (HOLE);
 		if (a_bballs < 4 * (level - BBALLLEVEL) && gtime < 0)
-		  if (!(rand () % ((nrockets == 1 ? 700 : 500) + 1 * (110 - level) / 3 + 2024 / level)))
+		  if (!(KRAND_N (((nrockets == 1 ? 700 : 500) + 1 * (110 - level) / 3 + 2024 / level))))
 		    creator (BBALL);
 		if (a_inspectors < level / (INSPECTORLEVEL) && gtime < 0)
-		  if (!(rand () % (1500 + 10 * (110 - level))))
+		  if (!(KRAND_N ((1500 + 10 * (110 - level)))))
 		    creator (INSPECTOR);
 		if (a_eholes < level / EHOLELEVEL + 1 && gtime < 0 && level >= EHOLELEVEL)
-		  if (!(rand () % (500 + 1000 / level)))
+		  if (!(KRAND_N ((500 + 1000 / level))))
 		    creator (EHOLE);
 	      }
 	    if (a_rockets == 0)
@@ -597,11 +613,11 @@ update_game ()
     }
   else
     {
-      if (a_balls < 5 && !(rand () % (50)))
+      if (a_balls < 5 && !(KRAND_N ((50))))
 	creator (BALL);
-      if (a_lunatics < 5 && !(rand () % (50)))
+      if (a_lunatics < 5 && !(KRAND_N ((50))))
 	creator (LUNATIC);
-      if (a_bballs < 4 && !(rand () % (200)))
+      if (a_bballs < 4 && !(KRAND_N ((200))))
 	creator (BBALL);
     }
 }
