@@ -20,6 +20,9 @@
 /* Changes for joystick "accelerate by deflection"         *
  *  (c) 1997 by Ludvik Tesar (Ludv\'{\i}k Tesa\v{r})       *
  ************************LT*********************************/
+/* Changes for Atari ST/STE with STDL                      *
+ *  Copyright(c)2026 by Neil Rackett                       *
+ ************************NR*********************************/
 #include <unistd.h>
 /*
  * Phase 1 moved object[], point[], nobjects and nrockets into
@@ -100,25 +103,32 @@ void
 points (void)
 {
   unsigned int    x, y;
-  int             i = 0;
-  while (i < npoint)
+  Point          *p = point;
+  Point          *last = point + npoint;
+
+  /* Walking pointers, not indices: Point is 24 bytes, so gcc 4.6
+     turns every point[i] into a shift-and-add chain plus a 32 bit
+     add of the array base - about a sixth of the whole step.  The
+     dead-particle swap still indexes, but it only runs for the few
+     particles that die in a frame. */
+  while (p < last)
     {
-      Point          *p = &point[i];
       if (--p->time <= 0)
 	{
-	  point[i] = point[--npoint];
+	  *p = *--last;
 	  continue;
 	}
-      x = (p->x += p->xp) >> 8;
-      y = (p->y += p->yp);
+      x = (unsigned int) (p->x += p->xp) >> 8;
+      y = (unsigned int) (p->y += p->yp);
       if (x > 0 && x < MAPWIDTH && y > 0 && y >> 8 < MAPHEIGHT)
 	{
 	  SMySetPixel (backscreen, x, y, p->color);
-	  i++;
+	  p++;
 	}
       else
-	point[i] = point[--npoint];
+	*p = *--last;
     }
+  npoint = (int) (last - point);
 }
 
 

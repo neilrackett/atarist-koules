@@ -61,6 +61,35 @@ extern VScreenType background;
 extern VScreenType backscreen;
 extern VScreenType starbackground;
 
+/*
+ * The particle buffer.  points() calls SMySetPixel once per live
+ * particle -- a few hundred times in an explosion -- so it is an
+ * inline that appends to the array STDL_PointsC is handed at the end
+ * of the frame, not a call into stdl/draw.c.  On an 8MHz 68000 the
+ * four argument pushes and the jsr/rts cost more than the three
+ * stores they exist to make.
+ *
+ * KPT_MAX is MAXPOINT, which koules.h defines further down than this
+ * header is included; stdl/draw.c checks the two agree.
+ */
+#define KPT_MAX 512
+extern STDL_Point kpt_xy[KPT_MAX];
+extern uint8_t  kpt_col[KPT_MAX];
+extern int      kpt_n;
+
+static __inline__ void
+SMySetPixel (VScreenType screen, int x, int y, int c)
+{
+  (void) screen;
+  if (kpt_n < KPT_MAX)
+    {
+      kpt_xy[kpt_n].x = (int16_t) x;
+      kpt_xy[kpt_n].y = (int16_t) (y >> 8);
+      kpt_col[kpt_n] = (uint8_t) c;
+      kpt_n++;
+    }
+}
+
 #include "gamedim.h"
 
 #define EYE_RADIUS 6            /* DIV == 2 */
@@ -87,7 +116,6 @@ int             IsPressedRight (void);
 int             IsPressedUp (void);
 
 void            BSetPixel (RawBitmapType bitmap, int, int, int);
-void            SMySetPixel (VScreenType, int, int, int);
 int             SGetPixel (int, int);
 void            SPutPixel (int, int, int);
 void            SSetPixel (int, int, int);

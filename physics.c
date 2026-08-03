@@ -15,6 +15,9 @@
 *  without linking a graphics backend.                     *
 ***********************************************************/
 
+/* Changes for Atari ST/STE with STDL                      *
+ *  Copyright(c)2026 by Neil Rackett                       *
+ ************************NR*********************************/
 #include "koules.h"
 #include "physics.h"
 
@@ -88,19 +91,21 @@ addpoint (CONST int x, CONST int y, CONST int xp, CONST int yp,
 void
 points1 (void)
 {
-  int             i = 0;
-  while (i < npoint)
+  Point          *p = point;
+  Point          *last = point + npoint;
+
+  while (p < last)
     {
-      Point          *p = &point[i];
       if (--p->time <= 0)
 	{
-	  point[i] = point[--npoint];
+	  *p = *--last;
 	  continue;
 	}
       p->x += p->xp;
       p->y += p->yp;
-      i++;
+      p++;
     }
+  npoint = (int) (last - point);
 }
 
 INLINE int

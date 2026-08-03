@@ -8,6 +8,9 @@
 * on-target benchmark without dragging in a backend.       *
 ***********************************************************/
 
+/* Changes for Atari ST/STE with STDL                      *
+ *  Copyright(c)2026 by Neil Rackett                       *
+ ************************NR*********************************/
 #ifndef _KOULES_PHYSICS_H
 #define _KOULES_PHYSICS_H
 

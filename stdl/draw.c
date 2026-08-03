@@ -6,6 +6,9 @@
 *  stdl/draw.c  drawing routines on top of STDL            *
 ***********************************************************/
 
+/* Changes for Atari ST/STE with STDL                      *
+ *  Copyright(c)2026 by Neil Rackett                       *
+ ************************NR*********************************/
 #include <interface.h>
 #include <stdlib.h>
 #include <stdio.h>
@@ -105,44 +108,37 @@ RestoreBackground (void)
 /*
  * Particles.  MAXPOINT of them, one pixel each: a dirty rectangle
  * apiece would cost more than the pixel does, so they are buffered
- * and drawn with one batched STDL_Points call per colour, then
- * erased next frame with a single call in the playfield colour.
+ * and drawn with one batched STDL_PointsC call, then erased next
+ * frame with a single STDL_Points call in the playfield colour.
  * points() keeps every particle inside y < MAPHEIGHT, where the
  * background is flat, so filling is an exact erase.
+ *
+ * One buffer serves both passes because the frame erases before it
+ * steps: ErasePoints() reads the list FlushPoints() left there last
+ * frame, and only then does points() overwrite it.
  */
-static STDL_Point ptin[MAXPOINT];
-static uint8_t  ptcol[MAXPOINT];
-static int      nptin;
-static STDL_Point ptout[MAXPOINT];
-static int      nptout;
-static int      ptstart[17];
+STDL_Point      kpt_xy[KPT_MAX];
+uint8_t         kpt_col[KPT_MAX];
+int             kpt_n;
+static int      nptout;         /* of kpt_xy, still on screen        */
 
-void
-SMySetPixel (VScreenType screen, int x, int y, int c)
-{
-  (void) screen;
-  if (nptin < MAXPOINT)
-    {
-      ptin[nptin].x = x;
-      ptin[nptin].y = y >> 8;
-      ptcol[nptin] = c;
-      nptin++;
-    }
-}
+#if KPT_MAX < MAXPOINT
+#error "KPT_MAX must cover MAXPOINT"
+#endif
 
 /*
  * Erasing the particle field.  Below the threshold, writing the
  * background colour back over each pixel is exact and cheap.  Above
- * it, one background blit over the particles' bounding box is
- * strictly less work: a single-pixel span still pays a clip test, a
- * row-address multiply and a read-modify-write per plane (measured
- * at roughly 550 cycles), while the blit moves whole groups.  At a
- * few hundred particles - one rocket explosion is about 150 - the
- * blit wins, and it costs nothing extra because the dirty restore
- * that follows has to run anyway.
+ * it, one background blit over the particles' bounding box can be
+ * less work: a single point still pays a clip test, a row-address
+ * multiply and a read-modify-write per plane pair (measured at 288
+ * cycles), while the blit moves whole groups at about six cycles a
+ * pixel.  That is the whole heuristic - and note that making the
+ * point path faster moves the crossover, so PT_BULK_RATIO is
+ * 288/6, not a constant of nature.
  */
 #define PT_BULK_ERASE 160       /* below this, never worth a bbox scan  */
-#define PT_BULK_RATIO  92       /* pixels a blit does per span's cycles  */
+#define PT_BULK_RATIO  48       /* pixels a blit does per point's cycles */
 
 void
 ErasePoints (void)
@@ -156,7 +152,7 @@ ErasePoints (void)
 
       for (i = 0; i < nptout; i++)
 	{
-	  int             x = ptout[i].x, y = ptout[i].y;
+	  int             x = kpt_xy[i].x, y = kpt_xy[i].y;
 	  if (x < x0) x0 = x;
 	  if (x > x1) x1 = x;
 	  if (y < y0) y0 = y;
@@ -166,11 +162,8 @@ ErasePoints (void)
       r.y = y0;
       r.w = x1 - x0 + 1;
       r.h = y1 - y0 + 1;
-      /* measured on a plain ST: a background blit runs at about six
-         cycles a pixel, a one-pixel span at about 550, so the blit
-         wins while the box holds fewer than ~92 pixels per particle.
-         A fresh explosion is tight and takes this path; the same
-         particles a second later cover the screen and do not. */
+      /* a fresh explosion is tight and takes this path; the same
+         particles a second later cover the screen and do not */
       if ((int32_t) r.w * r.h < (int32_t) nptout * PT_BULK_RATIO)
 	{
 	  STDL_DirtyPush (&r);
@@ -178,41 +171,27 @@ ErasePoints (void)
 	  return;
 	}
     }
-  STDL_Points (backscreen, ptout, nptout, C_BG);
+  STDL_Points (backscreen, kpt_xy, nptout, C_BG);
   nptout = 0;
 }
 
+/*
+ * Upstream's particle field is multi-coloured, so this used to
+ * counting-sort the list into colour runs and make a batched call
+ * per run - the only way to use a primitive that takes one colour.
+ * On a plain ST at 250 particles the sort and the fifteen calls cost
+ * 23ms against 13.5 for one STDL_PointsC, so the colour now travels
+ * with the point and the sort is gone.
+ */
 void
 FlushPoints (void)
 {
-  int             cnt[16];
-  int             i, c, n;
+  int             n = kpt_n;
 
-  n = nptin;
-  nptin = 0;
+  kpt_n = 0;
   if (n == 0)
     return;
-
-  /* counting sort into colour runs: two linear passes, then at most
-     sixteen batched span calls instead of n single-pixel ones */
-  for (c = 0; c < 16; c++)
-    cnt[c] = 0;
-  for (i = 0; i < n; i++)
-    cnt[ptcol[i]]++;
-  ptstart[0] = 0;
-  for (c = 0; c < 16; c++)
-    ptstart[c + 1] = ptstart[c] + cnt[c];
-  for (c = 0; c < 16; c++)
-    cnt[c] = ptstart[c];
-  for (i = 0; i < n; i++)
-    ptout[cnt[ptcol[i]]++] = ptin[i];
-
-  for (c = 1; c < 16; c++)      /* colour 0 is the background */
-    {
-      int             k = ptstart[c + 1] - ptstart[c];
-      if (k)
-	STDL_Points (backscreen, ptout + ptstart[c], k, c);
-    }
+  STDL_PointsC (backscreen, kpt_xy, kpt_col, n);
   nptout = n;
 }
 
