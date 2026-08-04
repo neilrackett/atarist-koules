@@ -14,3 +14,4 @@ sim/dumpf
 sim/dumpx
 sim/*.dSYM/
 .DS_Store
+.depend
