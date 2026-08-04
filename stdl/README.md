@@ -19,15 +19,15 @@ and the compositor (full repaint to dirty rectangles).
 
 ## Layout
 
-| File          | Lines | Contents                                                               |
-| ------------- | ----- | ---------------------------------------------------------------------- |
-| `draw.c`      | 539   | sprites, primitives, dirty tracking, the particle field, status bar    |
-| `sound.c`     | 445   | the seven effects, on STE DMA where affordable and on the YM elsewhere |
-| `intro.c`     | 196   | level briefings as paged text                                          |
-| `init.c`      | 190   | start-up, shutdown, the pre-shift and sample RAM decisions             |
-| `input.c`     | 166   | keyboard and joystick                                                  |
-| `interface.h` | 141   | the backend seam                                                       |
-| `font8x8.h`   | 2592  | SDL_gfx's 8x8 font, carried verbatim (LGPL)                            |
+| File          | Lines | Contents                                                                       |
+| ------------- | ----- | ------------------------------------------------------------------------------ |
+| `draw.c`      | 737   | sprites, primitives, page flipping, dirty tracking, particles, status bar      |
+| `sound.c`     | 445   | the seven effects, on STE DMA where affordable and on the YM elsewhere         |
+| `init.c`      | 201   | start-up, shutdown, the page, pre-shift and sample RAM decisions               |
+| `intro.c`     | 197   | level briefings as paged text                                                  |
+| `interface.h` | 180   | the backend seam                                                               |
+| `input.c`     | 166   | keyboard and joystick                                                          |
+| `font8x8.h`   | 2592  | SDL_gfx's 8x8 font, carried verbatim (LGPL)                                    |
 
 ## Building
 
@@ -67,12 +67,20 @@ hatari --machine st dist/KOULES.TOS
 Playable. Measured on an emulated plain 8MHz ST with 1MB; the game caps
 itself at 25 fps (`VFTIME`):
 
-| Scene                                | fps | render |
-| ------------------------------------ | --- | ------ |
-| Level 1                              | 19  | 16ms   |
-| Level 60, steady                     | 18  | 30ms   |
-| Level 60, explosion (~250 particles) | 8   | 69ms   |
-| Menu                                 | 25  | 1ms    |
+| Scene                                | fps | render | of which the flip |
+| ------------------------------------ | --- | ------ | ----------------- |
+| Level 1                              | 20  | 26ms   | 11ms              |
+| Level 60, steady                     | 19  | 32ms   | 5ms               |
+| Level 60, explosion (~250 particles) | 10  | 70ms   | 10ms              |
+| Menu                                 | 19  | 16ms   | 14ms              |
+
+The flip is a wait for the raster, so it is idle time, not work: the same
+scenes single-buffered render in 15, 27, 60 and 3ms and run at exactly the
+same frame rates, because what the flip waits through is time the frame
+would otherwise have spent in `STDL_Delay` hitting its 40ms deadline. The
+one place it does cost frames is a machine already far past that deadline -
+a Mega STE at level 60 with five players goes from 11 fps to 9 - and there
+the trade is nine complete frames against eleven half-drawn ones.
 
 Explosions are the worst case and were once far worse: drawing the particle
 field through one batched `STDL_PointsC` call, and merging plane words as
@@ -80,15 +88,18 @@ longs so the inner loop stops spilling registers, took that frame's
 rendering from 124ms to 69ms. Particles are still about half of it.
 
 A Mega STE is comfortably faster throughout. A 512KB ST plays level 1 at the
-same rate, having fallen back to non-pre-shifted sprites.
+same rate, having fallen back to non-pre-shifted sprites and to a single
+screen page - which is the one configuration where the objects still
+flicker, there being no 32KB to spare for the second page.
 
 One binary covers every machine, choosing at run time:
 
-| Machine             | Sprites             | Sound               |
-| ------------------- | ------------------- | ------------------- |
-| STE / Mega STE, 1MB | pre-shifted (~82KB) | 6258 Hz DMA samples |
-| STE, 512KB          | plain               | YM                  |
-| Plain ST, any RAM   | 1MB pre-shifted     | YM                  |
+| Machine             | Screen           | Sprites             | Sound               |
+| ------------------- | ---------------- | ------------------- | ------------------- |
+| STE / Mega STE, 1MB | two pages        | pre-shifted (~82KB) | 6258 Hz DMA samples |
+| STE, 512KB          | one page         | plain               | YM                  |
+| Plain ST, 1MB+      | two pages        | pre-shifted         | YM                  |
+| Plain ST, 512KB     | one page         | plain               | YM                  |
 
 ## How the port works
 
@@ -108,11 +119,34 @@ smoothness. The colour key sits at index 0 rather than 15, because nothing
 inside a ball is ever drawn in the background colour; that buys a whole extra
 ramp entry.
 
+**Two screen pages.** A frame erases what moved and redraws it somewhere
+else, and on an 8MHz ST that takes about as long as one sweep of the raster.
+Drawn straight onto the visible screen - which is what this port did
+originally - every object the beam passes between its erase and its redraw is
+simply missing from that sweep, so a busy level start showed half its koules
+in an occasional frame. The frame is now drawn into a page nobody is looking
+at and shown with one VBL-synced `STDL_Flip`, which is atomic. Measured over
+consecutive captures of a level start, 22 frames in 43 were missing content
+before and none are now.
+
+The page costs 32KB, so `init.c` asks for it only when the `Malloc(-1)` probe
+says there is room, exactly as it does for the pre-shifted sprites. A 512KB
+machine has 41KB free at that point and stays single-buffered - and keeps the
+flicker; from 1MB up there is half a megabyte spare and it does not.
+
 **Dirty rectangles.** Upstream copies the entire background over the back
 buffer every frame - about 90,000 pixels to move 2-10,000 pixels of content.
-It already maintains the persistent background surface that `STDL_Dirty`
-expects, so the compositor records each object's bounding box and restores only
-those. The status bar redraws only when it changes.
+It already maintains a persistent background surface, so the compositor
+records each object's bounding box and restores only those. The status bar
+redraws only when it changes.
+
+Each page keeps its own list, because the page about to be drawn into is two
+frames old rather than one: what has to be put back is a property of the page,
+not of the frame. That keeps the restore exactly the size it was
+single-buffered, where restoring the union of the last two frames into every
+page would have doubled it. The same split applies to everything else that
+survives between frames - the particle field, the status bar and the menu's
+selection frame each track what is on which page.
 
 **Particles** are drawn as a batch through `STDL_PointsC` - one call for the
 whole field, colour per point - and erased against the flat playfield, so they
@@ -136,7 +170,7 @@ monophonic and arbitrated by priority.
   name. The same briefings appear as paged text instead, and every entry point
   is preserved so `gameplan.c` is untouched.
 - **Objects animating behind menus** - the menu is a cached overlay, which is
-  what keeps it at 25 fps.
+  what keeps a settled one free of any per-frame drawing at all.
 
 ## Licence
 

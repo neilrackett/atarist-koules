@@ -18,7 +18,7 @@
 #include "../koules.h"
 #include "font8x8.h"
 
-VScreenType     backscreen;     /* == the live screen                 */
+VScreenType     backscreen;     /* the page being drawn into          */
 VScreenType     background;     /* what RestoreBackground repaints    */
 VScreenType     starbackground; /* unused on the ST (see stdl/intro.c) */
 
@@ -29,13 +29,52 @@ VScreenType     current;
 static STDL_Font kfont = { 8, 8, 0, 255, 1, (uint8_t *) font_data };
 
 /*
- * Dirty rectangles.  Every draw that lands on the screen records its
- * bounding box; RestoreBackground() repaints those boxes from the
- * background surface at the top of the next frame.  Overflowing the
- * list is not an error - STDL_Dirty falls back to a full-screen
+ * Page flipping.  Drawing a frame means erasing what moved and then
+ * putting it back somewhere else, which takes about as long as one
+ * raster sweep: straight onto the visible screen, every object the
+ * beam passes between its erase and its redraw is missing from that
+ * sweep, and a screen full of koules flickers.  So STDL is asked for
+ * two pages when there is memory for them (stdl/init.c decides) and
+ * the frame is drawn into the one nobody is looking at, becoming
+ * visible in a single VBL-synced flip.
+ *
+ * backscreen is STDL's screen surface, whose pixel base STDL_Flip
+ * swaps: it stays the same pointer, so `current == backscreen` still
+ * means "drawing on the screen" everywhere below.
+ */
+#define DOUBLED  ((backscreen->flags & STDL_DOUBLEBUF) != 0)
+
+static int      dpage;          /* the page being drawn into */
+
+/*
+ * Dirty rectangles, one list per page.
+ *
+ * Every draw that lands on a page records its bounding box, and the
+ * top of the next frame repaints those boxes from the background
+ * surface.  With two pages the one about to be drawn into is two
+ * frames old rather than one, so what has to be put back is a
+ * property of the page, not of the frame: each page carries the boxes
+ * that were last drawn into *it*, and the other page's boxes are none
+ * of its business.  That keeps the restore exactly as big as it was
+ * single-buffered - a union of the last two frames would repaint
+ * twice the area for nothing.
+ *
+ * Overflowing a list is not an error: it turns into a whole-page
  * restore, which is merely slow.
  */
 #define MAXDIRTY 400
+static STDL_Rect drect[2][MAXDIRTY];
+static int      dn[2];
+static int      dfull[2];       /* repaint the whole page */
+
+static void
+push (int p, const STDL_Rect * r)
+{
+  if (dn[p] >= MAXDIRTY)
+    dfull[p] = 1;
+  else
+    drect[p][dn[p]++] = *r;
+}
 
 /*
  * Menus and briefings are overlays, not moving objects: they change
@@ -48,7 +87,11 @@ static STDL_Font kfont = { 8, 8, 0, 255, 1, (uint8_t *) font_data };
  * covered back from there, no repaint involved.
  */
 static int      overlaybg;      /* background holds a menu, not the map */
-static int      selvalid;       /* a selection frame is on screen       */
+static int      selvalid[2];    /* a selection frame is on this page    */
+
+/* The status bar is repainted only when it changes, so with two pages
+   a change owes a repaint to each of them; see StatusBar. */
+static int      pendlives, pendscores;
 
 static void
 playfield (STDL_Rect * r)
@@ -72,17 +115,22 @@ OverlayBegin (void)
 
 /* Finished painting: put the whole playfield on screen in one go.
    Full width and word aligned, so this is the blit STDL is fastest
-   at - and it happens when the menu changes, not when it moves. */
+   at - and it happens when the menu changes, not when it moves.
+   The other page gets the same picture from its own restore: while a
+   menu is up the background surface *is* the menu, so a playfield
+   rectangle on its dirty list says exactly the same thing. */
 void
 OverlayEnd (void)
 {
   STDL_Rect       src, dst;
   current = backscreen;
   overlaybg = 1;
-  selvalid = 0;                 /* the blit takes the frame with it */
+  selvalid[0] = selvalid[1] = 0;  /* the blit takes the frame with it */
   playfield (&src);
   dst = src;
   STDL_BlitSurface (background, &src, backscreen, &dst);
+  if (DOUBLED)
+    push (dpage ^ 1, &src);
 }
 
 /* The background surface goes back to being the plain playfield.
@@ -95,7 +143,7 @@ drop_overlay (void)
   if (!overlaybg)
     return;
   overlaybg = 0;
-  selvalid = 0;
+  selvalid[0] = selvalid[1] = 0;
   playfield (&r);
   STDL_FillRect (background, &r, C_BG);
 }
@@ -104,12 +152,10 @@ drop_overlay (void)
 void
 OverlayDrop (void)
 {
-  STDL_Rect       r;
   if (!overlaybg)
     return;
   drop_overlay ();
-  playfield (&r);
-  STDL_DirtyPush (&r);
+  DirtyAll ();
 }
 
 static void
@@ -132,24 +178,43 @@ dirty (int x, int y, int w, int h)
   r.y = y;
   r.w = w;
   r.h = h;
-  STDL_DirtyPush (&r);
+  push (dpage, &r);
 }
 
+/* Both pages have to be repainted in full. */
 void
 DirtyAll (void)
 {
-  STDL_Rect       r;
-  r.x = 0;
-  r.y = 0;
-  r.w = MAPWIDTH;
-  r.h = MAPHEIGHT + 20;
-  STDL_DirtyPush (&r);
+  dn[0] = dn[1] = 0;
+  dfull[0] = dfull[1] = 1;
 }
 
 void
 RestoreBackground (void)
 {
-  STDL_DirtyRestore (backscreen);
+  int             i;
+
+  if (dfull[dpage])
+    {
+      /* The background surface has no status text in it and no
+         selection frame, so a whole-page repaint owes this page
+         both back.  Set here rather than where the full restore is
+         asked for, because an overflowing list asks for one too. */
+      STDL_BlitSurface (background, NULL, backscreen, NULL);
+      selvalid[dpage] = 0;
+      if (pendlives < 1)
+	pendlives = 1;
+      if (pendscores < 1)
+	pendscores = 1;
+    }
+  else
+    for (i = 0; i < dn[dpage]; i++)
+      {
+	STDL_Rect       d = drect[dpage][i];
+	STDL_BlitSurface (background, &drect[dpage][i], backscreen, &d);
+      }
+  dn[dpage] = 0;
+  dfull[dpage] = 0;
 }
 
 /*
@@ -160,14 +225,19 @@ RestoreBackground (void)
  * points() keeps every particle inside y < MAPHEIGHT, where the
  * background is flat, so filling is an exact erase.
  *
- * One buffer serves both passes because the frame erases before it
- * steps: ErasePoints() reads the list FlushPoints() left there last
- * frame, and only then does points() overwrite it.
+ * One buffer per page serves both passes because the frame erases
+ * before it steps: ErasePoints() reads the list FlushPoints() left
+ * there when this page was last drawn, and only then does points()
+ * overwrite it.  Two pages need two lists for the same reason the
+ * dirty rectangles do - the particles still on a page are the ones
+ * put there two frames ago.  Colours are not doubled: they are only
+ * read by the draw pass, which rebuilds them every frame.
  */
-STDL_Point      kpt_xy[KPT_MAX];
+static STDL_Point kpt_buf[2][KPT_MAX];
+STDL_Point     *kpt_xy = kpt_buf[0];
 uint8_t         kpt_col[KPT_MAX];
 int             kpt_n;
-static int      nptout;         /* of kpt_xy, still on screen        */
+static int      nptout[2];      /* of kpt_buf[p], still on that page */
 
 #if KPT_MAX < MAXPOINT
 #error "KPT_MAX must cover MAXPOINT"
@@ -190,16 +260,19 @@ static int      nptout;         /* of kpt_xy, still on screen        */
 void
 ErasePoints (void)
 {
-  if (nptout == 0)
+  STDL_Point     *out = kpt_buf[dpage];
+  int             n = nptout[dpage];
+
+  if (n == 0)
     return;
-  if (nptout >= PT_BULK_ERASE)
+  if (n >= PT_BULK_ERASE)
     {
       int             i, x0 = MAPWIDTH, y0 = MAPHEIGHT, x1 = -1, y1 = -1;
       STDL_Rect       r;
 
-      for (i = 0; i < nptout; i++)
+      for (i = 0; i < n; i++)
 	{
-	  int             x = kpt_xy[i].x, y = kpt_xy[i].y;
+	  int             x = out[i].x, y = out[i].y;
 	  if (x < x0) x0 = x;
 	  if (x > x1) x1 = x;
 	  if (y < y0) y0 = y;
@@ -211,15 +284,15 @@ ErasePoints (void)
       r.h = y1 - y0 + 1;
       /* a fresh explosion is tight and takes this path; the same
          particles a second later cover the screen and do not */
-      if ((int32_t) r.w * r.h < (int32_t) nptout * PT_BULK_RATIO)
+      if ((int32_t) r.w * r.h < (int32_t) n * PT_BULK_RATIO)
 	{
-	  STDL_DirtyPush (&r);
-	  nptout = 0;
+	  push (dpage, &r);
+	  nptout[dpage] = 0;
 	  return;
 	}
     }
-  STDL_Points (backscreen, kpt_xy, nptout, C_BG);
-  nptout = 0;
+  STDL_Points (backscreen, out, n, C_BG);
+  nptout[dpage] = 0;
 }
 
 /*
@@ -239,7 +312,7 @@ FlushPoints (void)
   if (n == 0)
     return;
   STDL_PointsC (backscreen, kpt_xy, kpt_col, n);
-  nptout = n;
+  nptout[dpage] = n;
 }
 
 /* ---------------------------------------------------------------- */
@@ -324,8 +397,6 @@ SetScreen (VScreenType screen)
   current = screen;
 }
 
-static int      statusvalid;
-
 void
 ClearScreen (void)
 {
@@ -334,20 +405,34 @@ ClearScreen (void)
     {
       /* Everything that was on screen has gone, so the next restore
          has to repaint the lot rather than the boxes drawn into the
-         frame we just threw away - and any overlay went with it. */
-      nptout = 0;
-      statusvalid = 0;
+         frame we just threw away - and any overlay went with it.
+         The page we did not clear is repainted from the background
+         instead, which comes to the same thing. */
+      nptout[0] = nptout[1] = 0;
       drop_overlay ();
-      STDL_DirtyReset ();
       DirtyAll ();
     }
 }
 
-/* Nothing to do: the game draws straight into screen memory. */
+/*
+ * Show the frame that has just been drawn.  Double-buffered this is
+ * the page flip, which is where the whole cooperative frame waits for
+ * the raster; single-buffered the game drew straight into screen
+ * memory and there is nothing to do.
+ *
+ * Called once per *drawn* frame - draw_objects(0) skips it - so a
+ * skipped frame leaves the last complete picture on screen instead of
+ * showing a page nothing was drawn into.
+ */
 void
 CopyToScreen (VScreenType source)
 {
   (void) source;
+  if (!DOUBLED)
+    return;
+  STDL_Flip ();
+  dpage ^= 1;
+  kpt_xy = kpt_buf[dpage];
 }
 
 void
@@ -434,8 +519,11 @@ HLine (int x1, int y1, int x2, int c)
  * from the background surface immediately before redrawing it closes
  * that window, and a frame that has not moved is left alone
  * completely, so a settled menu is perfectly still.
+ *
+ * Where it is, is per page: a frame that has settled still has to be
+ * drawn once into each of them before either can be left alone.
  */
-static STDL_Rect selrect;       /* what is on screen, 2px edges       */
+static STDL_Rect selrect[2];    /* what is on the page, 2px edges     */
 
 static void
 unselect (void)
@@ -443,11 +531,11 @@ unselect (void)
   STDL_Rect       s, d;
   int             i;
 
-  if (!selvalid)
+  if (!selvalid[dpage])
     return;
   for (i = 0; i < 4; i++)
     {
-      s = selrect;
+      s = selrect[dpage];
       switch (i)
 	{
 	case 0:
@@ -466,7 +554,7 @@ unselect (void)
       d = s;
       STDL_BlitSurface (background, &s, backscreen, &d);
     }
-  selvalid = 0;
+  selvalid[dpage] = 0;
 }
 
 void
@@ -478,12 +566,12 @@ DrawSelector (int x1, int y1, int x2, int y2, int col1, int col2)
   r.y = (int16_t) y1;
   r.w = (uint16_t) (x2 - x1 + 2); /* +1 for the second, offset frame */
   r.h = (uint16_t) (y2 - y1 + 2);
-  if (selvalid && r.x == selrect.x && r.y == selrect.y
-      && r.w == selrect.w && r.h == selrect.h)
+  if (selvalid[dpage] && r.x == selrect[dpage].x && r.y == selrect[dpage].y
+      && r.w == selrect[dpage].w && r.h == selrect[dpage].h)
     return;                     /* still where we left it */
   unselect ();
-  selrect = r;
-  selvalid = 1;
+  selrect[dpage] = r;
+  selvalid[dpage] = 1;
   STDL_HLine (backscreen, x1, x2, y1, col1);
   STDL_HLine (backscreen, x1, x2, y2, col1);
   STDL_VLine (backscreen, x1, y1, y2, col1);
@@ -532,7 +620,11 @@ DrawWhiteMaskedText (int x, int y, char *s)
 /*
  * The 20-row status bar under the playfield.  Nothing else draws
  * there and no particle can reach it, so it survives untouched from
- * frame to frame: repaint only when the strings actually change.
+ * frame to frame: repaint only when the strings actually change - and
+ * then once per page, because a page that was not on screen when they
+ * changed still carries the old numbers.  Called every frame; the two
+ * strncmps that a settled bar costs are nothing beside the eight
+ * hundred pixels of a repaint.
  */
 void
 StatusBar (const char *lives, const char *scores)
@@ -540,35 +632,44 @@ StatusBar (const char *lives, const char *scores)
   static char     lastlives[64];
   static char     lastscores[64];
   STDL_Rect       r;
-  int             changed = !statusvalid;
+  int             npages = DOUBLED ? 2 : 1;
 
   /* one line at a time: the score line carries the frame counter and
      so changes once a second, the lives line hardly ever */
-  if (changed || strncmp (lives, lastlives, sizeof (lastlives) - 1))
+  if (strncmp (lives, lastlives, sizeof (lastlives) - 1))
     {
       strncpy (lastlives, lives, sizeof (lastlives) - 1);
+      pendlives = npages;
+    }
+  if (pendlives)
+    {
+      pendlives--;
       r.x = 0;
       r.y = MAPHEIGHT + 1;
       r.w = MAPWIDTH;
       r.h = 9;
       STDL_FillRect (backscreen, &r, C_BG);
       STDL_DrawText (backscreen, &kfont,
-		     MAPWIDTH / 2 - (int) strlen (lives) * 4,
-		     MAPHEIGHT + 2, lives, C_WHITE);
+		     MAPWIDTH / 2 - (int) strlen (lastlives) * 4,
+		     MAPHEIGHT + 2, lastlives, C_WHITE);
     }
-  if (changed || strncmp (scores, lastscores, sizeof (lastscores) - 1))
+  if (strncmp (scores, lastscores, sizeof (lastscores) - 1))
     {
       strncpy (lastscores, scores, sizeof (lastscores) - 1);
+      pendscores = npages;
+    }
+  if (pendscores)
+    {
+      pendscores--;
       r.x = 0;
       r.y = MAPHEIGHT + 10;
       r.w = MAPWIDTH;
       r.h = 10;
       STDL_FillRect (backscreen, &r, C_BG);
       STDL_DrawText (backscreen, &kfont,
-		     MAPWIDTH / 2 - (int) strlen (scores) * 4,
-		     MAPHEIGHT + 11, scores, C_WHITE);
+		     MAPWIDTH / 2 - (int) strlen (lastscores) * 4,
+		     MAPHEIGHT + 11, lastscores, C_WHITE);
     }
-  statusvalid = 1;
 }
 
 /*
@@ -597,15 +698,25 @@ TextPage (const char *const *lines, int nlines)
   current = save;
   drop_overlay ();              /* whatever was up has been painted over */
   DirtyAll ();
-  nptout = 0;
+  nptout[0] = nptout[1] = 0;
 }
 
 /* ---------------------------------------------------------------- */
 /* palette                                                          */
 
+/*
+ * Upstream calls this before every palette write, and it means what
+ * it says: the shifter latches colour registers as it scans, so a
+ * fade step landing mid-frame splits the picture across two of its
+ * eleven shades.  The page flip is not here - it belongs with the
+ * frame, in CopyToScreen - because the fades program the palette a
+ * dozen times in a row and flipping pages under them would show a
+ * frame nothing had been drawn into.
+ */
 void
 WaitRetrace (void)
 {
+  STDL_WaitVBL ();
 }
 
 void

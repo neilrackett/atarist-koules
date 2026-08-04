@@ -51,6 +51,7 @@ onepage (char *lines[], int n)
       stars[j].y = KRAND_N (MAPHEIGHT + 20);
     }
   STDL_Points (backscreen, stars, NSTARS, C_GREY);
+  CopyToScreen (backscreen);    /* nothing flips again while it is up */
 
   fadein ();
   UpdateInput ();

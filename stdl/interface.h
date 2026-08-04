@@ -71,9 +71,12 @@ extern VScreenType starbackground;
  *
  * KPT_MAX is MAXPOINT, which koules.h defines further down than this
  * header is included; stdl/draw.c checks the two agree.
+ *
+ * kpt_xy is a pointer, not an array: double-buffered there is one
+ * buffer per screen page and the flip swaps it (see stdl/draw.c).
  */
 #define KPT_MAX 512
-extern STDL_Point kpt_xy[KPT_MAX];
+extern STDL_Point *kpt_xy;
 extern uint8_t  kpt_col[KPT_MAX];
 extern int      kpt_n;
 

@@ -119,6 +119,18 @@ extern int      sprite_flags;
 #define PRESHIFT_HEAP 150000L
 
 /*
+ * The same choice for the second screen page, made the same way and
+ * for the same reason.  A page is 32KB and the game still needs the
+ * background surface (32KB), the sprite set and the samples out of
+ * what is left, so this asks for a good deal more than the page:
+ * measured here, a 512KB machine has 41KB free at this point and
+ * cannot spare it, a 1MB one has 566KB and can.  Single-buffered the
+ * game draws straight onto the visible screen and the objects
+ * flicker, which is the trade a stock 520ST is stuck with.
+ */
+#define DOUBLEBUF_HEAP 250000L
+
+/*
  * How many simulated objects a cooperative level may hold.  Upstream
  * capped at 30; the collision pass is O(n^2) and was measured at
  * 26.7ms for n=10, 63.2ms for n=20 and 109.8ms for n=30 against a

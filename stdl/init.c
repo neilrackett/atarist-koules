@@ -60,17 +60,34 @@ freeram (void)
 static int
 initialize (void)
 {
+  long            heap;
+  uint32_t        vflags;
+
   if (STDL_Init (STDL_INIT_VIDEO | STDL_INIT_JOYSTICK) != 0)
     {
       fprintf (stderr, "STDL_Init: %s\n", STDL_GetError ());
       return -1;
     }
-  backscreen = STDL_SetVideoMode (MAPWIDTH, MAPHEIGHT + 20, 4, 0);
+
+  /*
+   * A second screen page is what stops the objects flickering: the
+   * frame is drawn where nobody can see it and appears in one flip.
+   * It costs 32KB, which a 512KB machine has not got once the
+   * background surface, the sprites and the samples are in - and the
+   * same Malloc(-1) probe that picks the sprite format answers this
+   * one, before the mode is set rather than after.
+   */
+  heap = freeram ();
+  vflags = (heap >= DOUBLEBUF_HEAP) ? STDL_DOUBLEBUF : 0;
+  backscreen = STDL_SetVideoMode (MAPWIDTH, MAPHEIGHT + 20, 4, vflags);
   if (backscreen == NULL)
     {
       fprintf (stderr, "SetVideoMode: %s\n", STDL_GetError ());
       return -1;
     }
+  fprintf (stderr, "koules: heap %ld bytes, %s\n", heap,
+	   (backscreen->flags & STDL_DOUBLEBUF)
+	   ? "double buffered" : "single buffered (low memory)");
   SetScreen (backscreen);
 
   background = STDL_CreateSurface (MAPWIDTH, MAPHEIGHT + 20);
@@ -80,12 +97,6 @@ initialize (void)
       return -1;
     }
   starbackground = NULL;
-
-  if (STDL_DirtyInit (background, 400) != 0)
-    {
-      fprintf (stderr, "dirty: %s\n", STDL_GetError ());
-      return -1;
-    }
 
   /* The stick drives player one and the menus; upstream's keyboard
    * code then needs no joystick branch at all. */

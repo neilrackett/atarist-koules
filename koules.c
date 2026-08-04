@@ -159,6 +159,7 @@ static void help(int x,int y,int radius,char *text)
 char            str[2];
 #ifdef KOULES_DEBUG
 uint32_t        ph_restore, ph_points, ph_obj, ph_over, ph_stat, ph_step;
+uint32_t        ph_flip;        /* page flip: the wait for the raster */
 uint32_t        ph_pump;        /* event pump, incl. the sound refill */
 #define PHASE(acc) do { uint32_t now = STDL_GetTicks (); \
                         acc += now - phmark; phmark = now; } while (0)
@@ -168,7 +169,6 @@ uint32_t        ph_pump;        /* event pump, incl. the sound refill */
 static void
 draw_objects (CONST int draw)
 {
-  char            s[80];
   int             i;
 #ifdef KOULES_DEBUG
   uint32_t        phmark = STDL_GetTicks ();
@@ -451,7 +451,9 @@ draw_objects (CONST int draw)
        * a particle - so it survives untouched between frames.  Only
        * repaint it when the numbers change: upstream redrew four
        * shadowed strings every frame, which is precisely the cost
-       * that hurt the Sopwith port.
+       * that hurt the Sopwith port.  StatusBar() is what decides
+       * that (it owes each screen page a repaint, not each change),
+       * so it is called every frame and keeps the strings.
        */
       /*
        * Only format when something changed.  mintlib's sprintf costs
@@ -460,6 +462,7 @@ draw_objects (CONST int draw)
        * few times a minute.
        */
       static int      lastsig[9] = { -1 };
+      static char     s1[80];
       static char     s2[80];
       int             sig[9];
       int             k, same = 1;
@@ -476,19 +479,21 @@ draw_objects (CONST int draw)
       PHASE (ph_over);
       if (!same)
 	{
-	  sprintf (s, "level %i   lives%4i%4i%4i%4i%4i", lastlevel + 1,
+	  sprintf (s1, "level %i   lives%4i%4i%4i%4i%4i", lastlevel + 1,
 		   sig[1], sig[2], sig[3], sig[4], sig[5]);
 	  sprintf (s2, "score %i", object[0].score);
 	  if (nrockets > 1)
 	    sprintf (s2 + strlen (s2), " %i", object[1].score);
 	  if (profiletext[0])
 	    sprintf (s2 + strlen (s2), "  %s", profiletext);
-	  StatusBar (s, s2);
 	}
+      StatusBar (s1, s2);
       PHASE (ph_stat);
 
-      /* Nothing to copy: the game draws into screen memory. */
+      /* Double-buffered this is the page flip, and the frame's one
+         wait for the raster; single-buffered it does nothing. */
       CopyToScreen (backscreen);
+      PHASE (ph_flip);
       fadein ();
     }
 }
@@ -857,15 +862,16 @@ game ()
 #ifdef KOULES_DEBUG
 	  fprintf (stderr,
 		   "d=%d s=%d phys=%lu draw=%lu | rest=%lu pts=%lu obj=%lu"
-		   " over=%lu stat=%lu step=%lu pump=%lu np=%d mode=%d\n",
+		   " over=%lu stat=%lu step=%lu flip=%lu pump=%lu"
+		   " np=%d mode=%d\n",
 		   drawn, skipped, (unsigned long) physms,
 		   (unsigned long) drawms, (unsigned long) ph_restore,
 		   (unsigned long) ph_points, (unsigned long) ph_obj,
 		   (unsigned long) ph_over, (unsigned long) ph_stat,
-		   (unsigned long) ph_step, (unsigned long) ph_pump,
-		   npoint, gamemode);
+		   (unsigned long) ph_step, (unsigned long) ph_flip,
+		   (unsigned long) ph_pump, npoint, gamemode);
 	  ph_restore = ph_points = ph_obj = ph_over = ph_stat = 0;
-	  ph_step = ph_pump = 0;
+	  ph_step = ph_flip = ph_pump = 0;
 #endif
 	  statwin = t2;
 	  physms = drawms = 0;
