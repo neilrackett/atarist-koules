@@ -120,9 +120,10 @@ int             SGetPixel (int, int);
 void            SPutPixel (int, int, int);
 void            SSetPixel (int, int, int);
 void            DrawText (int, int, char *);
+void            DrawColorText (int, int, char *, int);
 void            DrawBlackMaskedText (int, int, char *);
 void            DrawWhiteMaskedText (int, int, char *);
-void            DrawRectangle (int, int, int, int, int);
+void            DrawSelector (int, int, int, int, int, int);
 void            HLine (int, int, int, int);
 void            Line (int, int, int, int, int);
 void            Line1 (int, int, int, int, int);
@@ -154,10 +155,17 @@ void            fadein1 (void);
  * batched span call in the flat playfield colour (the playfield
  * cannot be anything but flat: check_limit() keeps every particle
  * inside y < MAPHEIGHT).
+ *
+ * Overlays (the menus) are painted between OverlayBegin() and
+ * OverlayEnd(), which put them in the background surface and then
+ * on screen; while one is up the background is the menu, which is
+ * where DrawSelector() gets back what the selection frame covered.
+ * OverlayDrop() gives the background back to the playfield.
  */
 void            RestoreBackground (void);
-void            SuppressDirty (int on);
-void            ClearOverlay (void);
+void            OverlayBegin (void);
+void            OverlayEnd (void);
+void            OverlayDrop (void);
 void            ErasePoints (void);
 void            FlushPoints (void);
 void            StatusBar (const char *lives, const char *scores);

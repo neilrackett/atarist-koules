@@ -51,6 +51,12 @@ Numbers;
  * (measured: 420 glyphs a frame is 207ms on an 8MHz 68000, which is
  * five frames a second before anything else happens).  Everything
  * that alters what draw_menu() would put on screen sets this.
+ *
+ * The selection frame is *not* one of those things: it slides every
+ * frame and is drawn separately by draw_selector(), over the top of
+ * the painted menu.  Marking the menu changed for it would repaint
+ * the lot five times per keypress, which is what the port used to do
+ * and what "flickers as the cursor moves" was.
  */
 int             menuchanged = 1;
 
@@ -60,11 +66,24 @@ static int      nmenu;
 static int      nnumbers;
 static Menu     menu[20];
 static int      selected = 0;
-static float    mx1, my1, mx1p, my1p;
-static float    mx2, my2, mx2p, my2p;
+/*
+ * The four edges of the selection frame, in 16.16 fixed point.
+ * Upstream carries them as floats and slides them a fifth of the way
+ * per frame for MENUTIME frames; this is per-frame work and soft
+ * float costs hundreds of cycles an operation on a 68000, so it
+ * follows the rest of the port into fixed point.  t* is where the
+ * slide ends, and the last step is assigned rather than accumulated:
+ * a sum of five truncated increments lands a pixel short about as
+ * often as not, and one pixel puts the frame through the bottom row
+ * of the glyphs it is supposed to enclose.
+ */
+static fix_t    mx1, my1, mx1p, my1p;
+static fix_t    mx2, my2, mx2p, my2p;
+static int      tx1, ty1, tx2, ty2;
 static int      mtime;
 static char     playertext[] = " 1  PLAYER";
 static char     leveltext[] = "LEVEL  000 ";
+static char     urltext[] = "neilrackett.com";
 #define YPOSITION(i) (MAPHEIGHT/2+20-5*nmenu+10*i)
 #define XPOSITION(i) (MAPWIDTH/2-4*strlen(menu[i].text))
 #define XPOSITION1(i) (MAPWIDTH/2+4*strlen(menu[i].text))
@@ -316,12 +335,15 @@ quit ()
 static void
 fit_selector ()
 {
-  menuchanged = 1;
   mtime = MENUTIME;
-  mx1p = (XPOSITION (selected) - 2 - mx1) / mtime;
-  mx2p = (XPOSITION1 (selected) + 1 - mx2) / mtime;
-  my1p = (YPOSITION (selected) - 2 - my1) / mtime;
-  my2p = (YPOSITION (selected) + 8 + 0 - my2) / mtime;
+  tx1 = XPOSITION (selected) - 2;
+  tx2 = XPOSITION1 (selected) + 1;
+  ty1 = YPOSITION (selected) - 2;
+  ty2 = YPOSITION (selected) + 8 + 0;
+  mx1p = (FIXI (tx1) - mx1) / mtime;
+  mx2p = (FIXI (tx2) - mx2) / mtime;
+  my1p = (FIXI (ty1) - my1) / mtime;
+  my2p = (FIXI (ty2) - my2) / mtime;
 }
 
 static void
@@ -335,6 +357,7 @@ change_menu ()
 {
   static char     s[2][5][40], *s1;
   int             i;
+  menuchanged = 1;              /* the item list is being rebuilt */
 #ifdef NETSUPPORT
   if (client)
     {
@@ -471,6 +494,7 @@ veryeasy ()
 static void
 change_mode ()
 {
+  menuchanged = 1;
   nnumbers = 0;
   menu[0].text = "DEATH MATCH(DOOM)";
   menu[0].func = deathmatch;
@@ -484,6 +508,7 @@ change_mode ()
 static void
 change_obtiznost ()
 {
+  menuchanged = 1;
   menu[0].text = "NIGHTMARE";
   menu[0].func = veryhard;
   menu[1].text = "HARD";
@@ -503,6 +528,7 @@ change_obtiznost ()
 static void
 nmain_menu ()
 {
+  menuchanged = 1;
   nnumbers = 2;
   nmenu = 8;
   menu[0].text = "START GAME";
@@ -594,6 +620,7 @@ cmenu2 (unsigned char *message, int size)
 static void
 cmain_menu ()
 {
+  menuchanged = 1;
   nnumbers = 1;
   nmenu = 4;
   menu[0].text = "REGISTER PLAYERS";
@@ -645,13 +672,29 @@ main_menu ()
 void
 init_menu ()
 {
-  mx1 = 10;
-  mx2 = MAPWIDTH - 10;
-  my2 = 10;
-  my2 = MAPHEIGHT - 10;
+  /* the frame zooms in from the whole map on the first menu.
+     Upstream assigns my2 twice and never sets my1, so the box grew
+     out of the top border rather than the inset it was meant to. */
+  mx1 = FIXI (10);
+  mx2 = FIXI (MAPWIDTH - 10);
+  my1 = FIXI (10);
+  my2 = FIXI (MAPHEIGHT - 10);
   ssound = sound;
   playertext[1] = nrockets + '0';
   main_menu ();
+}
+
+/*
+ * The selection frame, drawn on the screen over the painted menu.
+ * DrawSelector() erases the last one from the menu underneath, so
+ * moving it is eight short spans and four strip blits rather than a
+ * repaint - and a frame that has not moved costs nothing at all.
+ */
+void
+draw_selector (void)
+{
+  DrawSelector (FIX2I (mx1), FIX2I (my1), FIX2I (mx2), FIX2I (my2),
+		ball (2), ball (20));
 }
 
 void
@@ -662,8 +705,6 @@ draw_menu (CONST int draw)
   if (draw)
     {
       levelchange ();
-      DrawRectangle ((int) mx1, (int) my1, (int) mx2, (int) my2, ball (2));
-      DrawRectangle ((int) mx1 + 1, (int) my1 + 1, (int) mx2 + 1, (int) my2 + 1, ball (20));
       DrawBlackMaskedText (MAPWIDTH / 2 - 8 * 4 + 1, 1, "THE GAME");
       DrawBlackMaskedText (MAPWIDTH / 2 - 10 * 4 + 1, 11, "K O U L E S");
       DrawBlackMaskedText (MAPWIDTH / 2 - 2 * 4 + 1, 21, "BY");
@@ -704,15 +745,44 @@ draw_menu (CONST int draw)
 	  DrawBlackMaskedText ((int) XPOSITION (i) + 1, (int) YPOSITION (i) + 1, menu[i].text);
 	  DrawWhiteMaskedText ((int) XPOSITION (i), (int) YPOSITION (i), menu[i].text);
 	}
+      /*
+       * Where the ST port came from, on the front page only - the
+       * sub-menus rebuild menu[] and are identified by having no
+       * number spinners, the same test menu_keys() uses for "this is
+       * the top level".  Part of the painted image, not drawn per
+       * frame: this is the overlay whose cost the cache exists to
+       * avoid.
+       */
+      if (nnumbers == 2)
+	{
+	  /* midway between the last item and the status bar.  YPOSITION
+	     does not parenthesise its argument, so the index has to be
+	     a variable rather than nmenu-1 */
+	  int             last = nmenu - 1;
+	  int             y = YPOSITION (last) + 20;
+	  if (y > MAPHEIGHT - 12)
+	    y = MAPHEIGHT - 12;
+	  DrawColorText (MAPWIDTH / 2 - 4 * (int) strlen (urltext), y,
+			 urltext, ball (2));
+	}
     }
   if (mtime)
     {
-      mtime--;
-      my1 += my1p;
-      mx1 += mx1p;
-      my2 += my2p;
-      mx2 += mx2p;
-      menuchanged = 1;          /* selector still sliding */
+      if (--mtime)
+	{
+	  my1 += my1p;
+	  mx1 += mx1p;
+	  my2 += my2p;
+	  mx2 += mx2p;
+	}
+      else
+	{
+	  /* land on the item, not near it */
+	  mx1 = FIXI (tx1);
+	  my1 = FIXI (ty1);
+	  mx2 = FIXI (tx2);
+	  my2 = FIXI (ty2);
+	}
     }
 }
 static int      inctime, changed, waittime;

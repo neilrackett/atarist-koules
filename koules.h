@@ -415,6 +415,7 @@ extern void     creator (CONST int);
 extern void     creator_rocket (CONST int);
 extern void     uninitialize ();
 extern void     draw_menu (CONST int);
+extern void     draw_selector (void);
 extern void     draw_joy (CONST int);
 extern void     init_menu ();
 extern void     menu_keys ();

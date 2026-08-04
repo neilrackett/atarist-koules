@@ -39,37 +39,84 @@ static STDL_Font kfont = { 8, 8, 0, 255, 1, (uint8_t *) font_data };
 
 /*
  * Menus and briefings are overlays, not moving objects: they change
- * only when the player changes them.  While one is up its draws are
- * not recorded, so the next frame's restore leaves it alone and it
- * is repainted only when the game says it has changed - the
- * difference between drawing four hundred glyphs every frame and
- * drawing them once.
+ * only when the player changes them, so painting one every frame is
+ * four hundred glyphs for nothing.  They are painted into the
+ * background surface instead - the very surface RestoreBackground
+ * repaints from - and blitted to the screen once.  While a menu is
+ * up the background *is* the menu, which is what lets the selection
+ * frame slide over it: DrawSelector() puts the four strips it last
+ * covered back from there, no repaint involved.
  */
-static int      nodirty;
+static int      overlaybg;      /* background holds a menu, not the map */
+static int      selvalid;       /* a selection frame is on screen       */
 
-void
-SuppressDirty (int on)
+static void
+playfield (STDL_Rect * r)
 {
-  nodirty = on;
+  r->x = 0;
+  r->y = 0;
+  r->w = MAPWIDTH;
+  r->h = MAPHEIGHT;
 }
 
-/* Wipe the playfield (not the status bar) ready for a new overlay. */
+/* Start painting an overlay: draws go to the background surface, so
+   nothing is recorded dirty and nothing appears on screen yet. */
 void
-ClearOverlay (void)
+OverlayBegin (void)
 {
   STDL_Rect       r;
-  r.x = 0;
-  r.y = 0;
-  r.w = MAPWIDTH;
-  r.h = MAPHEIGHT;
-  STDL_FillRect (backscreen, &r, C_BG);
+  playfield (&r);
+  STDL_FillRect (background, &r, C_BG);
+  current = background;
+}
+
+/* Finished painting: put the whole playfield on screen in one go.
+   Full width and word aligned, so this is the blit STDL is fastest
+   at - and it happens when the menu changes, not when it moves. */
+void
+OverlayEnd (void)
+{
+  STDL_Rect       src, dst;
+  current = backscreen;
+  overlaybg = 1;
+  selvalid = 0;                 /* the blit takes the frame with it */
+  playfield (&src);
+  dst = src;
+  STDL_BlitSurface (background, &src, backscreen, &dst);
+}
+
+/* The background surface goes back to being the plain playfield.
+   Callers that are not already repainting the screen have to take
+   the overlay off it as well - see OverlayDrop. */
+static void
+drop_overlay (void)
+{
+  STDL_Rect       r;
+  if (!overlaybg)
+    return;
+  overlaybg = 0;
+  selvalid = 0;
+  playfield (&r);
+  STDL_FillRect (background, &r, C_BG);
+}
+
+/* The overlay has gone: forget it and repaint over it. */
+void
+OverlayDrop (void)
+{
+  STDL_Rect       r;
+  if (!overlaybg)
+    return;
+  drop_overlay ();
+  playfield (&r);
+  STDL_DirtyPush (&r);
 }
 
 static void
 dirty (int x, int y, int w, int h)
 {
   STDL_Rect       r;
-  if (current != backscreen || nodirty)
+  if (current != backscreen)
     return;
   if (x < 0)
     w += x, x = 0;
@@ -287,9 +334,10 @@ ClearScreen (void)
     {
       /* Everything that was on screen has gone, so the next restore
          has to repaint the lot rather than the boxes drawn into the
-         frame we just threw away. */
+         frame we just threw away - and any overlay went with it. */
       nptout = 0;
       statusvalid = 0;
+      drop_overlay ();
       STDL_DirtyReset ();
       DirtyAll ();
     }
@@ -374,24 +422,76 @@ HLine (int x1, int y1, int x2, int c)
   Line1 (x1, y1, x2, y1, c);
 }
 
-/* Menu selection frame: four edges, so the dirty rectangles are four
- * one-pixel strips rather than the whole enclosed area. */
-void
-DrawRectangle (int x1, int y1, int x2, int y2, int color)
+/*
+ * The menu selection frame: two nested rectangles, the only thing
+ * that moves while a menu is up.
+ *
+ * It does not go through the dirty list.  The screen is the live
+ * framebuffer, and the restore that would erase it runs at the top
+ * of the frame while the redraw runs at the bottom, so for the
+ * milliseconds in between there is no frame on screen at all - at
+ * 50Hz that is a visible blink several times a second.  Erasing it
+ * from the background surface immediately before redrawing it closes
+ * that window, and a frame that has not moved is left alone
+ * completely, so a settled menu is perfectly still.
+ */
+static STDL_Rect selrect;       /* what is on screen, 2px edges       */
+
+static void
+unselect (void)
 {
-  STDL_HLine (current, x1, x2, y1, color);
-  STDL_HLine (current, x1, x2, y2, color);
-  STDL_VLine (current, x1, y1, y2, color);
-  STDL_VLine (current, x2, y1, y2, color);
-  if (current == backscreen)
+  STDL_Rect       s, d;
+  int             i;
+
+  if (!selvalid)
+    return;
+  for (i = 0; i < 4; i++)
     {
-      int             w = x2 - x1 + 1;
-      int             h = y2 - y1 + 1;
-      dirty (x1, y1, w, 1);
-      dirty (x1, y2, w, 1);
-      dirty (x1, y1, 1, h);
-      dirty (x2, y1, 1, h);
+      s = selrect;
+      switch (i)
+	{
+	case 0:
+	  s.h = 2;
+	  break;                /* top    */
+	case 1:
+	  s.y += s.h - 2, s.h = 2;
+	  break;                /* bottom */
+	case 2:
+	  s.w = 2;
+	  break;                /* left   */
+	case 3:
+	  s.x += s.w - 2, s.w = 2;
+	  break;                /* right  */
+	}
+      d = s;
+      STDL_BlitSurface (background, &s, backscreen, &d);
     }
+  selvalid = 0;
+}
+
+void
+DrawSelector (int x1, int y1, int x2, int y2, int col1, int col2)
+{
+  STDL_Rect       r;
+
+  r.x = (int16_t) x1;
+  r.y = (int16_t) y1;
+  r.w = (uint16_t) (x2 - x1 + 2); /* +1 for the second, offset frame */
+  r.h = (uint16_t) (y2 - y1 + 2);
+  if (selvalid && r.x == selrect.x && r.y == selrect.y
+      && r.w == selrect.w && r.h == selrect.h)
+    return;                     /* still where we left it */
+  unselect ();
+  selrect = r;
+  selvalid = 1;
+  STDL_HLine (backscreen, x1, x2, y1, col1);
+  STDL_HLine (backscreen, x1, x2, y2, col1);
+  STDL_VLine (backscreen, x1, y1, y2, col1);
+  STDL_VLine (backscreen, x2, y1, y2, col1);
+  STDL_HLine (backscreen, x1 + 1, x2 + 1, y1 + 1, col2);
+  STDL_HLine (backscreen, x1 + 1, x2 + 1, y2 + 1, col2);
+  STDL_VLine (backscreen, x1 + 1, y1 + 1, y2 + 1, col2);
+  STDL_VLine (backscreen, x2 + 1, y1 + 1, y2 + 1, col2);
 }
 
 static void
@@ -405,6 +505,13 @@ void
 DrawText (int x, int y, char *s)
 {
   text (x, y, s, C_WHITE);
+}
+
+/* Same, in a colour of the caller's choosing. */
+void
+DrawColorText (int x, int y, char *s, int color)
+{
+  text (x, y, s, color);
 }
 
 /* Upstream's shadow pass. Black is the playfield colour here, so the
@@ -488,6 +595,7 @@ TextPage (const char *const *lines, int nlines)
 		     lines[i], C_WHITE);
     }
   current = save;
+  drop_overlay ();              /* whatever was up has been painted over */
   DirtyAll ();
   nptout = 0;
 }

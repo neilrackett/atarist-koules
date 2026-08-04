@@ -173,6 +173,20 @@ draw_objects (CONST int draw)
 #ifdef KOULES_DEBUG
   uint32_t        phmark = STDL_GetTicks ();
 #endif
+  /*
+   * Before the restore, not after: leaving a menu hands the
+   * background surface back to the playfield, and the restore below
+   * is what takes the menu off the screen.
+   */
+  if (lastmode != gamemode)
+    {
+      int             wasoverlay = (lastmode == MENU || lastmode == KEYS
+				    || lastmode == JOY);
+      lastmode = gamemode;
+      menuchanged = 1;
+      if (wasoverlay)
+	OverlayDrop ();
+    }
   if (draw)
     {
       /*
@@ -375,23 +389,23 @@ draw_objects (CONST int draw)
     points1 ();
   PHASE (ph_obj);
   /*
-   * Overlays.  Painting one is expensive (hundreds of glyphs) and
-   * pointless when nothing about it has moved, so it goes on screen
-   * without being recorded as dirty - the next restore then leaves
-   * it standing - and is repainted only when menu.c says its content
-   * changed.  The mode functions still run every frame with draw=0
-   * so their animation timers keep ticking.
+   * Overlays.  Painting one is hundreds of glyphs and pointless when
+   * nothing about it has changed, so it is painted into the
+   * background surface - where the restore will keep putting it back
+   * for free - and blitted to the screen once, only when menu.c says
+   * its content changed.  The mode functions still run every frame
+   * with draw=0 so their animation timers keep ticking.
+   *
+   * The selection frame is the one part that moves, so it is drawn
+   * on the screen, over the painted menu, and erases itself from it
+   * as it goes.  Repainting the menu to move it - which is what this
+   * used to do - costs 130ms a frame and looks like it.
    */
-  if (lastmode != gamemode)
-    lastmode = gamemode, menuchanged = 1;
   if (gamemode == MENU || gamemode == KEYS || gamemode == JOY)
     {
       int             paint = draw && menuchanged;
       if (paint)
-	{
-	  ClearOverlay ();
-	  SuppressDirty (1);
-	}
+	OverlayBegin ();
       switch (gamemode)
 	{
 	case MENU:
@@ -408,9 +422,11 @@ draw_objects (CONST int draw)
 	}
       if (paint)
 	{
-	  SuppressDirty (0);
+	  OverlayEnd ();
 	  menuchanged = 0;
 	}
+      if (draw && gamemode == MENU)
+	draw_selector ();
     }
 
 #ifdef MOUSE

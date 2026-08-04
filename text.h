@@ -87,6 +87,8 @@ static char    *text[] =
   "...",
   "OS/2 version by Thomas A. K. Kjaer",
   "...",
+  "Atari ST version by Neil Rackett",
+  "...",
   "Script by Kamil Toman",
   "and Jan Hubicka",
   "...",
