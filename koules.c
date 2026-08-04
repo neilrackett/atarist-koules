@@ -143,7 +143,7 @@ points (void)
  */
 char            profiletext[32];
 int             profilestamp;   /* bumped when profiletext changes */
-static int      profileon = 1;
+static int      profileon = 0;  /* frame timings: off, F toggles */
 extern int      menuchanged;
 static int      lastmode = -1;
 
