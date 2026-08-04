@@ -48,8 +48,9 @@ stcmd make
 ```
 
 The root `Makefile` picks between the per-platform makefiles - `make atari`
-(the default), `make sdl`, `make sim`, and `make clean` for all of them - so
-`stcmd make -f Makefile.atari` is equivalent if you prefer being explicit.
+(the default), `make sim` for the host physics harness, and `make clean` for
+both - so `stcmd make -f Makefile.atari` is equivalent if you prefer being
+explicit.
 
 This produces `dist/KOULES.TOS` plus the converted sound assets. `dist/` doubles
 as a Hatari GEMDOS drive:

@@ -7,7 +7,6 @@
 #
 #   make                    the default platform (atari)
 #   make atari              Atari ST/STE via STDL  -> Makefile.atari
-#   make sdl                desktop SDL           -> Makefile.sdl
 #   make sim                host physics harness  -> Makefile.sim
 #   make clean              clean every platform
 #   make help               this list
@@ -27,12 +26,13 @@
 #   git clone --recurse-submodules <url>     # fresh clone
 #   git submodule update --init              # existing clone
 #
-# Note the SDL build is upstream's desktop one and is not maintained by
-# the Atari port: the ST work removed the forked sound-server driver it
-# expects, and the shared physics is now 16.16 fixed point rather than
-# float.  Pristine upstream is on the lr-sdl branch.
+# Upstream's X11, SVGAlib, OS/2 and SDL backends are not carried here:
+# the TOS prune removed the network layer and the forked sound servers
+# they link against, and the shared physics is now 16.16 fixed point
+# rather than float.  The pristine upstream tree is on the lr-sdl
+# branch, and in lkundrak/koules.
 
-PLATFORMS = atari sdl sim
+PLATFORMS = atari sim
 PLATFORM ?= atari
 
 # passed through to the chosen platform makefile; empty means its
@@ -61,8 +61,7 @@ help:
 	@echo 'make [platform] - build Koules for one platform'
 	@echo
 	@echo '  atari   Atari ST/STE via STDL (default)'
-	@echo '  sdl     desktop SDL (upstream; unmaintained here)'
-	@echo '  sim     host physics harness'
+	@echo '  sim     host physics harness (float vs fixed point)'
 	@echo
 	@echo '  clean   clean every platform'
 	@echo
