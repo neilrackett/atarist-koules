@@ -118,7 +118,12 @@ STDL, the display library, is a submodule, so clone with it:
 compile with the atarist-toolkit-docker wrapper - the library is
 built from the submodule as part of it:
 
-        stcmd make -f Makefile.atari
+        stcmd make
+
+"make [platform]" picks between the per-platform makefiles: atari
+(the default), sdl, sim, and "make clean" for all of them.  So
+"stcmd make -f Makefile.atari" does the same thing, if you prefer
+being explicit, and "make help" lists them.
 
 See stdl/README.md for the Atari ST port.
 

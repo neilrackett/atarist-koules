@@ -44,8 +44,12 @@ The game then cross-compiles with `m68k-atari-mint-gcc` via
 in one command - `libstdl.a` is built from the submodule as part of it:
 
 ```
-stcmd make -f Makefile.atari
+stcmd make
 ```
+
+The root `Makefile` picks between the per-platform makefiles - `make atari`
+(the default), `make sdl`, `make sim`, and `make clean` for all of them - so
+`stcmd make -f Makefile.atari` is equivalent if you prefer being explicit.
 
 This produces `dist/KOULES.TOS` plus the converted sound assets. `dist/` doubles
 as a Hatari GEMDOS drive:

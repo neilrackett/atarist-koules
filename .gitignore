@@ -4,7 +4,6 @@
 *.bak
 *~
 tags
-Makefile
 koules.sndsrv.linux
 koules.svga
 koules.sdl
