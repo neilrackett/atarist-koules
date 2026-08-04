@@ -1,6 +1,8 @@
 # Koules for Atari ST
 
-<img src="./doc/atarist-koules.png" alt="Push them out before they push you" width="640" height="400"/>
+<img src="./doc/atarist-koules.gif" alt="Push them out before they push you" width="640" height="400"/>
+
+Ported to Atari ST by [Neil Rackett](https://neilrackett.com/atarist).
 
 ## Push them out before they push you
 
@@ -56,6 +58,7 @@ git clone --recurse-submodules https://github.com/neilrackett/atarist-koules.git
 In a clone that already exists, `git submodule update --init` fetches it. Then
 cross-compile with `m68k-atari-mint-gcc` via
 [atarist-toolkit-docker](https://github.com/sidecartridge/atarist-toolkit-docker)
+
 - the library is built from the submodule as part of it:
 
 ```
@@ -89,6 +92,6 @@ Copyright (C) 1995-1998 Jan Hubicka and Kamil Toman, under the
 [GNU General Public License version 2 or later](https://www.gnu.org/licenses/old-licenses/gpl-2.0.html);
 see `COPYING`. The Atari ST changes are under the same terms.
 
-This port is based on [lkundrak/koules](https://github.com/lkundrak/koules),
+This port is (C) 2026 Neil Rackett, based on [lkundrak/koules](https://github.com/lkundrak/koules),
 whose `lr-sdl` branch carries the pristine tree and the X11, SVGAlib, SDL,
 HP-UX and OS/2 backends that are not built here.
