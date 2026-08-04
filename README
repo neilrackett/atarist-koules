@@ -71,44 +71,8 @@ INSTALL:
 In order to install Koules 1.4 you must do the following:
 (If you encounter any problems read `Problems' and `Koules.FAQ')
 
-For X11:
-========
-
-Edit the Iconfig for your computer and type:
-        xmkmf -a
-        make
-        make install
-
-For SVGAlib:
-============
-
-You MUST be 'root' to install the game.
-Edit the Makefile.svgalib for your computer and type:
-        make -f Makefile.svgalib
-        make -f Makefile.svgalib install
-
-For SDL:
-========
-
-You MUST be 'root' to install the game.
-Edit the Makefile.sdl for your computer and type:
-        make -f Makefile.sdl
-        make -f Makefile.sdl install
-
-For HP-UX wo imake:
-===================
-
-Edit the Makefile.hpux for your computer and type:
-        make -f Makefile.hpux
-        make -f Makefile.hpux install
-
-For OS/2:
-=========
-
-Who cares?! :)
-
-For Atari ST
-============
+For Atari ST/STE:
+=================
 
 STDL, the display library, is a submodule, so clone with it:
 
@@ -125,12 +89,23 @@ built from the submodule as part of it:
 for both.  So "stcmd make -f Makefile.atari" does the same thing, if
 you prefer being explicit, and "make help" lists them.
 
-Upstream's X11, SVGAlib, OS/2 and SDL backends are not carried on
-this branch: the prune for TOS removed the network layer and the
-forked sound servers they link against, and the shared physics is
-now fixed point.  The pristine tree is on the lr-sdl branch.
-
 See stdl/README.md for the Atari ST port.
+
+For X11, SVGAlib, SDL, HP-UX and OS/2:
+======================================
+
+Not carried on this branch.  Pruning the tree for single-tasking
+GEMDOS removed the network layer and the forked sound servers those
+backends link against, and the shared physics is now 16.16 fixed
+point rather than float, so their build files were dropped rather
+than left to fail.
+
+Build them from upstream instead, which still has Iconfig,
+Makefile.svgalib, Makefile.sdl and Makefile.hpux:
+
+        https://github.com/lkundrak/koules
+
+The pristine tree is also on this repository's lr-sdl branch.
 
 Widows 95*:
 ============
