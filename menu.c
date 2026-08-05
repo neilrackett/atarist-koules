@@ -77,8 +77,8 @@ static int      selected = 0;
  * often as not, and one pixel puts the frame through the bottom row
  * of the glyphs it is supposed to enclose.
  */
-static fix_t    mx1, my1, mx1p, my1p;
-static fix_t    mx2, my2, mx2p, my2p;
+static oval_t   mx1, my1, mx1p, my1p;
+static oval_t   mx2, my2, mx2p, my2p;
 static int      tx1, ty1, tx2, ty2;
 static int      mtime;
 static char     playertext[] = " 1  PLAYER";

@@ -76,6 +76,21 @@ hatari --machine st dist/KOULES.TOS
 [stdl/README.md](stdl/README.md) for how the port works, and `README` for
 upstream's original documentation.
 
+### KOULSFP4.TOS: the FPU build
+
+The port's simulation is 16.16 fixed point because the 68000 has no FPU. But
+some STs _do_ have one — a Mega STE with a 68881/2 fitted, or a Mega ST with
+an SFP-004 card — reached through memory-mapped registers at `$FFFA40` rather
+than coprocessor instructions. `stcmd make` also produces `dist/KOULSFP4.TOS`,
+which puts upstream's original floating-point physics back and hands every
+`sqrt()` in the simulation — one per `normalize()`, so several per object per
+frame — to the coprocessor as a single FSQRT through
+[atarist-sfp004](https://github.com/neilrackett/atarist-sfp004) (also a
+submodule). Without the FPU it detects the absence via the `_FPU` cookie and
+falls back to soft float, which is exactly the upstream physics the 16.16
+conversion replaced — charming, and about as slow as the 68000 gets. Not
+faster than the fixed-point build. Not the point.
+
 ## To do
 
 - Network play. Upstream's client/server code is on the `lr-sdl` branch and

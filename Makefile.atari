@@ -11,6 +11,9 @@
 #   git submodule update --init              # existing clone
 #
 #   KOULES.TOS   the game
+#   KOULSFP4.TOS the game with float physics on a memory-mapped
+#                68881/68882 (SFP-004 / Mega STE + GAL) via
+#                atarist-sfp004; soft float without the FPU
 #   BENCHX.TOS   16.16 fixed point simulation
 #   BENCHF.TOS   upstream float simulation, for comparison
 
@@ -23,6 +26,13 @@ NM       = m68k-atari-mint-nm
 # together. Override with STDL=<path>.
 STDL    ?= $(firstword $(wildcard extern/stdl) ../atarist-stdl)
 STDL_LIB = $(STDL)/libstdl.a
+
+# Same arrangement for the SFP-004 FPU library: the submodule wins,
+# a sibling checkout is the fallback.  Override with SFP004=<path>.
+# Only KOULSFP4.TOS needs it; when neither is present that target
+# just drops out of "all".
+SFP004  ?= $(firstword $(wildcard extern/sfp004) ../atarist-sfp004)
+SFP004_LIB = $(SFP004)/libsfp004.a
 
 # Cloning without --recurse-submodules leaves extern/stdl an empty
 # directory; say so rather than failing on a missing STDL.h.
@@ -53,8 +63,18 @@ GAMESRC  = koules.c menu.c gameplan.c framebuffer.c cmap.c rcfiles.c \
            krand.c $(FIXSRC) \
            stdl/init.c stdl/draw.c stdl/input.c stdl/intro.c \
            stdl/sound.c
+# the SFP-004 build swaps the fixed point physics for upstream's
+# float physics with sqrt dispatched to the coprocessor
+SFPSRC   = $(subst $(FIXSRC),physics_sfp.c,$(GAMESRC))
+SFPFLAGS = $(GAMEFLAGS) -DKOULES_FLOAT -DKOULES_SFP004 -I$(SFP004)
 
-all: $(DIST)/KOULES.TOS $(DIST)/BENCHX.TOS $(DIST)/BENCHF.TOS \
+# KOULSFP4.TOS only when the library is checked out somewhere
+ifneq ($(wildcard $(SFP004)),)
+SFPTARGET = $(DIST)/KOULSFP4.TOS
+endif
+
+all: $(DIST)/KOULES.TOS $(SFPTARGET) \
+     $(DIST)/BENCHX.TOS $(DIST)/BENCHF.TOS \
      $(DIST)/PHASEX.TOS $(DIST)/PHASEF.TOS $(DIST)/PHASE30.TOS \
      assets
 
@@ -72,10 +92,22 @@ $(DIST):
 $(STDL_LIB):
 	$(MAKE) -C $(STDL) libstdl.a
 
+$(SFP004_LIB):
+	$(MAKE) -C $(SFP004) lib
+
 $(DIST)/KOULES.TOS: $(GAMESRC) koules.h sound.h physics.h fixed.h gamedim.h \
                     stdl/interface.h stdl/font8x8.h text.h $(GAMELIBS) \
                     | $(DIST)
 	$(CC) $(GAMEFLAGS) $(LDFLAGS) -o $@ $(GAMESRC) $(GAMELIBS)
+	$(STRIP) $@
+
+# -lm: ksqrt's fallback and the rest of the float physics soft-float
+# through libm on machines without the coprocessor.
+$(DIST)/KOULSFP4.TOS: $(SFPSRC) sim/physics_float.c koules.h sound.h \
+                    physics.h gamedim.h \
+                    stdl/interface.h stdl/font8x8.h text.h $(GAMELIBS) \
+                    $(SFP004_LIB) | $(DIST)
+	$(CC) $(SFPFLAGS) $(LDFLAGS) -o $@ $(SFPSRC) $(GAMELIBS) $(SFP004_LIB) -lm
 	$(STRIP) $@
 
 # Plays the seven effects in id order with console markers and
@@ -137,7 +169,7 @@ floatcheck:
 	@rm -rf $(DIST)/objcheck $(DIST)/objcheckf
 
 clean:
-	rm -f $(DIST)/KOULES.TOS $(DIST)/KDEBUG.TOS $(DIST)/SFXTEST.TOS $(DIST)/BENCHX.TOS $(DIST)/BENCHF.TOS $(DIST)/PHASEX.TOS $(DIST)/PHASEF.TOS $(DIST)/PHASE30.TOS
+	rm -f $(DIST)/KOULES.TOS $(DIST)/KOULSFP4.TOS $(DIST)/KDEBUG.TOS $(DIST)/SFXTEST.TOS $(DIST)/BENCHX.TOS $(DIST)/BENCHF.TOS $(DIST)/PHASEX.TOS $(DIST)/PHASEF.TOS $(DIST)/PHASE30.TOS
 	rm -f $(DIST)/*.WAV
 
 .PHONY: all assets clean floatcheck

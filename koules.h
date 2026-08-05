@@ -267,6 +267,22 @@ typedef float   oval_t;
 #define OVMULDIV(v,a,b) ((oval_t)((v) * (double)(a) / (b)))
 #define OV2D(v)   ((double)(v))
 #define OVROT     float
+/*
+ * The game sources (koules.c, menu.c, gameplan.c) are written
+ * against fixed.h's vocabulary, which the fixed build gets for
+ * free.  Here the same names collapse to the plain float
+ * expressions upstream used, so one set of sources serves both
+ * builds.  The angle macros take whatever RAD() produces --
+ * radians here, whole degrees in the fixed build -- so call
+ * sites must wrap literal degrees in RAD().
+ */
+typedef unsigned long ufix_t;            /* isqrt32()'s cast, only */
+#define FIXI(i)   ((oval_t)(i))
+#define FIX2I(x)  ((int)(x))
+#define fixmul(a,b) ((oval_t)(a) * (oval_t)(b))
+#define fixsin(x) ((oval_t)sin(x))
+#define fixcos(x) ((oval_t)cos(x))
+#define isqrt32(v) ((ufix_t)sqrt((double)(v)))
 #else
 #include "fixed.h"
 typedef fix_t   oval_t;

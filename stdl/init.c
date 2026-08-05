@@ -22,6 +22,10 @@
 #include "../koules.h"
 #include "../framebuffer.h"
 
+#ifdef KOULES_SFP004
+#include "atari_sfp004.h"
+#endif
+
 int             sprite_flags = 0;
 
 extern void     game (void);
@@ -68,6 +72,18 @@ initialize (void)
       fprintf (stderr, "STDL_Init: %s\n", STDL_GetError ());
       return -1;
     }
+
+#ifdef KOULES_SFP004
+  /* The CIR at $FFFA40 is supervisor-only address space.  STDL_Init
+     has just taken supervisor mode and the game keeps it until exit,
+     so the dispatch can be armed for good right here. */
+  sfp004_init ();
+  sfp004_arm ();
+  fprintf (stderr, "koules: 68882 %s\n",
+	   sfp004_available ()
+	   ? "found - physics sqrt on the FPU"
+	   : "not found - soft float physics");
+#endif
 
   /*
    * A second screen page is what stops the objects flickering: the

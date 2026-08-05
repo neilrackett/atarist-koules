@@ -299,12 +299,13 @@ init_objects1 ()
 	      object[i].radius = radius (object[i].type);
 	      object[i].letter = ' ';
 	      /* NB the second line assigns .x again -- upstream typo,
-	         preserved.  RAD() is now degrees, so 360/nrockets is
-	         an exact table index. */
+	         preserved.  RAD() keeps the heading in whatever unit
+	         the build works in: whole degrees (an exact table
+	         index) fixed, radians float. */
 	      object[i].x = OVI (GAMEWIDTH / 2)
-		+ fixmul (fixsin (i * 360 / nrockets), OVI (GAMEHEIGHT / 3));
+		+ fixmul (fixsin (RAD (i * 360 / nrockets)), OVI (GAMEHEIGHT / 3));
 	      object[i].x = OVI (GAMEHEIGHT / 2)
-		+ fixmul (fixcos (i * 360 / nrockets), OVI (GAMEHEIGHT / 3));
+		+ fixmul (fixcos (RAD (i * 360 / nrockets)), OVI (GAMEHEIGHT / 3));
 	    }
 	  for (i = nrockets + 1; i < nobjects; i++)
 	    {

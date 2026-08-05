@@ -14,7 +14,9 @@
 #ifndef _KOULES_PHYSICS_H
 #define _KOULES_PHYSICS_H
 
+#ifndef KOULES_FLOAT
 #include "fixed.h"
+#endif
 
 /* one simulation step, in the order game() runs them */
 extern void     update_forces (void);
@@ -38,11 +40,18 @@ extern int      create_letter (void);
 extern int      npoint;
 
 /* normalise a heading to 0..359 so the sine table index stays in
-   range however long a player leans on the rotate key */
+   range however long a player leans on the rotate key.  The float
+   build carries radians and upstream never wrapped them -- adding
+   360 to a radian heading would corrupt it -- so there it is a
+   no-op. */
+#ifdef KOULES_FLOAT
+#define ANGWRAP(a) do { } while (0)
+#else
 #define ANGWRAP(a) do {				\
     while ((a) < 0) (a) += 360;			\
     while ((a) >= 360) (a) -= 360;		\
   } while (0)
+#endif
 
 /* Number of explosion fragments upstream's
  *   for (i = 0; i < RAD(360); i += RAD(360)*DIV*DIV/r/r/M_PI)
