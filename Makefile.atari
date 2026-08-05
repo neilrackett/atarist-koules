@@ -22,6 +22,8 @@
 #   BENCHF.TOS   upstream float simulation, for comparison
 #   PHASEX.TOS   per-phase timing, fixed point (PHASE30: n=30)
 #   PHASEF.TOS   per-phase timing, float
+#   PHASESFP.TOS per-phase timing, float with sqrt on the SFP-004
+#                (run it on the real FPU; Hatari has no CIR)
 
 CC       = m68k-atari-mint-gcc
 STRIP    = m68k-atari-mint-strip
@@ -74,15 +76,17 @@ GAMESRC  = koules.c menu.c gameplan.c framebuffer.c cmap.c rcfiles.c \
 SFPSRC   = $(subst $(FIXSRC),physics_sfp.c,$(GAMESRC))
 SFPFLAGS = $(GAMEFLAGS) -DKOULES_FLOAT -DKOULES_SFP004 -I$(SFP004)
 
-# KOULSFP4.TOS only when the library is checked out somewhere
+# the SFP-004 targets only when the library is checked out somewhere
 ifneq ($(wildcard $(SFP004)),)
 SFPTARGET = $(DIST)/KOULSFP4.TOS
+SFPBENCH  = $(DIST)/PHASESFP.TOS
 endif
 
 all: $(DIST)/KOULES.TOS $(SFPTARGET) assets
 
 bench: $(DIST)/BENCHX.TOS $(DIST)/BENCHF.TOS \
-       $(DIST)/PHASEX.TOS $(DIST)/PHASEF.TOS $(DIST)/PHASE30.TOS
+       $(DIST)/PHASEX.TOS $(DIST)/PHASEF.TOS $(DIST)/PHASE30.TOS \
+       $(SFPBENCH)
 
 # The sample set the DMA backend loads at start-up: tracked in
 # assets/, rebuilt from upstream's sounds/*.raw by tools/mksounds.sh.
@@ -144,6 +148,14 @@ $(DIST)/PHASE30.TOS: sim/phases.c sim/scenario.c krand.c $(FIXSRC) koules.h phys
 $(DIST)/PHASEF.TOS: sim/phases.c sim/scenario.c krand.c sim/physics_float.c koules.h physics.h gamedim.h | $(DIST)
 	$(CC) $(CFLAGS) $(LDFLAGS) -DKOULES_FLOAT -o $@ sim/phases.c sim/scenario.c krand.c sim/physics_float.c -lm
 
+# PHASEF with the KOULSFP4 physics: sqrt dispatched to the 68882.
+# The interesting run is on the real coprocessor - without it the
+# fallback makes this PHASEF plus a cookie check per sqrt.
+$(DIST)/PHASESFP.TOS: sim/phases.c sim/scenario.c krand.c physics_sfp.c \
+                    sim/physics_float.c koules.h physics.h gamedim.h \
+                    $(SFP004_LIB) | $(DIST)
+	$(CC) $(CFLAGS) -DKOULES_FLOAT -DKOULES_SFP004 -I$(SFP004) $(LDFLAGS) -o $@ sim/phases.c sim/scenario.c krand.c physics_sfp.c $(SFP004_LIB) -lm
+
 # Proof that no floating point survives in the fixed build: gcc
 # emits calls to these libgcc soft-float helpers for every float
 # or double operation, so their absence from the symbol table is a
@@ -175,7 +187,7 @@ floatcheck:
 	@rm -rf $(DIST)/objcheck $(DIST)/objcheckf
 
 clean:
-	rm -f $(DIST)/KOULES.TOS $(DIST)/KOULSFP4.TOS $(DIST)/KDEBUG.TOS $(DIST)/SFXTEST.TOS $(DIST)/BENCHX.TOS $(DIST)/BENCHF.TOS $(DIST)/PHASEX.TOS $(DIST)/PHASEF.TOS $(DIST)/PHASE30.TOS
+	rm -f $(DIST)/KOULES.TOS $(DIST)/KOULSFP4.TOS $(DIST)/KDEBUG.TOS $(DIST)/SFXTEST.TOS $(DIST)/BENCHX.TOS $(DIST)/BENCHF.TOS $(DIST)/PHASEX.TOS $(DIST)/PHASEF.TOS $(DIST)/PHASE30.TOS $(DIST)/PHASESFP.TOS
 	rm -f $(DIST)/*.WAV
 
 .PHONY: all assets bench clean floatcheck

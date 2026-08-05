@@ -20,6 +20,9 @@
 #include "koules.h"
 #include "physics.h"
 #include "scenario.h"
+#ifdef KOULES_SFP004
+#include "atari_sfp004.h"
+#endif
 #ifdef KOULES_FLOAT
 #include <math.h>
 /* physics_float.c's normalize() is gnu89-inline so it has no
@@ -50,7 +53,9 @@ TICKS (void)
 }
 #endif
 
-#ifdef KOULES_FLOAT
+#if defined(KOULES_SFP004)
+#define BUILD "float+sfp004"
+#elif defined(KOULES_FLOAT)
 #define BUILD "float"
 #else
 #define BUILD "fixed"
@@ -135,6 +140,18 @@ main (void)
 #endif
 
   printf ("PHASES-START %s  (n=%d, %d frames)\n", BUILD, N, FRAMES);
+
+#ifdef KOULES_SFP004
+  /* The CIR is supervisor-only address space; this program takes
+     supervisor above and keeps it, so the dispatch can be armed for
+     the whole run.  Say which path is being timed - without the
+     coprocessor these numbers are just PHASEF's. */
+  sfp004_init ();
+  sfp004_arm ();
+  printf ("68882: %s\n", sfp004_available ()
+	  ? "found - physics sqrt on the FPU"
+	  : "not found - timing soft float");
+#endif
 
   base = run (0);		/* loop + respawn overhead only */
   show ("loop + respawn only", base);
@@ -246,6 +263,20 @@ main (void)
     t1 = TICKS ();
     printf ("  normalize (sqrt + 2 div)            %ld us each\n",
 	    (long) (t1 - t0) * 5000L / 2000L);
+#ifdef KOULES_SFP004
+    /* the sqrt the physics actually calls: one FSQRT dialog on the
+       coprocessor, libm soft float without it.  ref_normalize above
+       is always soft, so these two lines are the before/after. */
+    {
+      extern double   ksqrt (double);
+      t0 = TICKS ();
+      for (i = 0; i < 2000; i++)
+	r += (float) ksqrt ((double) (300.0f + i));
+      t1 = TICKS ();
+      printf ("  ksqrt (FSQRT via the CIR)           %ld us each\n",
+	      (long) (t1 - t0) * 5000L / 2000L);
+    }
+#endif
     sink += (int) r;
   }
 #endif
