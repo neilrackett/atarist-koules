@@ -14,8 +14,14 @@
 #   KOULSFP4.TOS the game with float physics on a memory-mapped
 #                68881/68882 (SFP-004 / Mega STE + GAL) via
 #                atarist-sfp004; soft float without the FPU
+#
+# The on-target benchmarks are not part of the default build; "make
+# -f Makefile.atari bench" (or make atari TARGET=bench) builds them:
+#
 #   BENCHX.TOS   16.16 fixed point simulation
 #   BENCHF.TOS   upstream float simulation, for comparison
+#   PHASEX.TOS   per-phase timing, fixed point (PHASE30: n=30)
+#   PHASEF.TOS   per-phase timing, float
 
 CC       = m68k-atari-mint-gcc
 STRIP    = m68k-atari-mint-strip
@@ -73,10 +79,10 @@ ifneq ($(wildcard $(SFP004)),)
 SFPTARGET = $(DIST)/KOULSFP4.TOS
 endif
 
-all: $(DIST)/KOULES.TOS $(SFPTARGET) \
-     $(DIST)/BENCHX.TOS $(DIST)/BENCHF.TOS \
-     $(DIST)/PHASEX.TOS $(DIST)/PHASEF.TOS $(DIST)/PHASE30.TOS \
-     assets
+all: $(DIST)/KOULES.TOS $(SFPTARGET) assets
+
+bench: $(DIST)/BENCHX.TOS $(DIST)/BENCHF.TOS \
+       $(DIST)/PHASEX.TOS $(DIST)/PHASEF.TOS $(DIST)/PHASE30.TOS
 
 # The sample set the DMA backend loads at start-up: tracked in
 # assets/, rebuilt from upstream's sounds/*.raw by tools/mksounds.sh.
@@ -172,4 +178,4 @@ clean:
 	rm -f $(DIST)/KOULES.TOS $(DIST)/KOULSFP4.TOS $(DIST)/KDEBUG.TOS $(DIST)/SFXTEST.TOS $(DIST)/BENCHX.TOS $(DIST)/BENCHF.TOS $(DIST)/PHASEX.TOS $(DIST)/PHASEF.TOS $(DIST)/PHASE30.TOS
 	rm -f $(DIST)/*.WAV
 
-.PHONY: all assets clean floatcheck
+.PHONY: all assets bench clean floatcheck

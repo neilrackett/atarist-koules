@@ -67,5 +67,6 @@ help:
 	@echo
 	@echo 'Examples:'
 	@echo '  make'
+	@echo '  make atari TARGET=bench       - on-target benchmarks'
 	@echo '  make atari TARGET=floatcheck'
 	@echo '  make atari EXTRA_CFLAGS=-DFN_HEAP_DEBUG'
