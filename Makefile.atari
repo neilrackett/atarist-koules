@@ -4,7 +4,7 @@
 #
 # stcmd mounts the current directory as /tmp inside the toolkit
 # container and runs there, so everything the build touches has to
-# live inside this repository. STDL does: extern/stdl is a submodule,
+# live inside this repository. STDL does: lib/stdl is a submodule,
 # and libstdl.a is built from it automatically when it is missing.
 #
 #   git clone --recurse-submodules <url>     # fresh clone
@@ -32,17 +32,17 @@ NM       = m68k-atari-mint-nm
 # The submodule wins when it is present; a sibling checkout is the
 # fallback, so the library and the game can still be worked on
 # together. Override with STDL=<path>.
-STDL    ?= $(firstword $(wildcard extern/stdl) ../atarist-stdl)
+STDL    ?= $(firstword $(wildcard lib/stdl) ../atarist-stdl)
 STDL_LIB = $(STDL)/libstdl.a
 
 # Same arrangement for the SFP-004 FPU library: the submodule wins,
 # a sibling checkout is the fallback.  Override with SFP004=<path>.
 # Only KOULSFP4.TOS needs it; when neither is present that target
 # just drops out of "all".
-SFP004  ?= $(firstword $(wildcard extern/sfp004) ../atarist-sfp004)
+SFP004  ?= $(firstword $(wildcard lib/sfp004) ../atarist-sfp004)
 SFP004_LIB = $(SFP004)/libsfp004.a
 
-# Cloning without --recurse-submodules leaves extern/stdl an empty
+# Cloning without --recurse-submodules leaves lib/stdl an empty
 # directory; say so rather than failing on a missing STDL.h.
 ifeq ($(wildcard $(STDL)/include),)
 ifeq ($(filter clean floatcheck,$(MAKECMDGOALS)),)

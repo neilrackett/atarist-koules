@@ -48,7 +48,7 @@ $(PLATFORMS):
 
 # Best-effort: one platform failing must not stop the others, so
 # failures are collected rather than aborting the loop.  Note the SDL
-# clean sweeps object files tree-wide, which reaches extern/stdl and
+# clean sweeps object files tree-wide, which reaches lib/stdl and
 # removes the built library along with them.
 clean:
 	@rc=0; for p in $(PLATFORMS); do \

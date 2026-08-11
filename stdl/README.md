@@ -31,7 +31,7 @@ and the compositor (full repaint to dirty rectangles).
 
 ## Building
 
-STDL is a submodule at `extern/stdl`, pinned to a release tag, so clone with
+STDL is a submodule at `lib/stdl`, pinned to a release tag, so clone with
 it:
 
 ```

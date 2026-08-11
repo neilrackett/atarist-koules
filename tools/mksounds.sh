@@ -18,10 +18,10 @@ set -e
 
 HERE=$(dirname "$0")
 ROOT=$(cd "$HERE/.." && pwd)
-# STDL is the extern/stdl submodule; a sibling checkout is the
+# STDL is the lib/stdl submodule; a sibling checkout is the
 # fallback, matching Makefile.atari.
 CONV=tools/stdlconv/stdlconv.py
-STDLCONV=${1:-$ROOT/extern/stdl/$CONV}
+STDLCONV=${1:-$ROOT/lib/stdl/$CONV}
 [ -f "$STDLCONV" ] || [ -n "${1:-}" ] || STDLCONV=$ROOT/../atarist-stdl/$CONV
 RATE=6258
 SRC=$ROOT/sounds

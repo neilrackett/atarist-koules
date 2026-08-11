@@ -1,6 +1,6 @@
-[submodule "extern/stdl"]
-	path = extern/stdl
+[submodule "lib/stdl"]
+	path = lib/stdl
 	url = https://github.com/neilrackett/atarist-stdl.git
-[submodule "extern/sfp004"]
-	path = extern/sfp004
+[submodule "lib/sfp004"]
+	path = lib/sfp004
 	url = https://github.com/neilrackett/atarist-sfp004.git
