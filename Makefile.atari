@@ -14,6 +14,9 @@
 #   KOULSFP4.TOS the game with float physics on a memory-mapped
 #                68881/68882 (SFP-004 / Mega STE + GAL) via
 #                atarist-sfp004; soft float without the FPU
+#   KOULES.ST    a 720K floppy image of both, ready for Hatari or a
+#                real drive; the game is AUTO\KOULES.PRG, so it
+#                starts on power-up
 #
 # The on-target benchmarks are not part of the default build; "make
 # -f Makefile.atari bench" (or make atari TARGET=bench) builds them:
@@ -28,6 +31,9 @@
 CC       = m68k-atari-mint-gcc
 STRIP    = m68k-atari-mint-strip
 NM       = m68k-atari-mint-nm
+# tools/mkfloppy.py needs nothing but a stock interpreter, which is
+# what the toolkit container has - no mtools in there.
+PYTHON  ?= python3
 
 # The submodule wins when it is present; a sibling checkout is the
 # fallback, so the library and the game can still be worked on
@@ -82,7 +88,7 @@ SFPTARGET = $(DIST)/KOULSFP4.TOS
 SFPBENCH  = $(DIST)/PHASESFP.TOS
 endif
 
-all: $(DIST)/KOULES.TOS $(SFPTARGET) assets
+all: $(DIST)/KOULES.TOS $(SFPTARGET) assets $(DIST)/KOULES.ST
 
 bench: $(DIST)/BENCHX.TOS $(DIST)/BENCHF.TOS \
        $(DIST)/PHASEX.TOS $(DIST)/PHASEF.TOS $(DIST)/PHASE30.TOS \
@@ -90,8 +96,24 @@ bench: $(DIST)/BENCHX.TOS $(DIST)/BENCHF.TOS \
 
 # The sample set the DMA backend loads at start-up: tracked in
 # assets/, rebuilt from upstream's sounds/*.raw by tools/mksounds.sh.
-assets: | $(DIST)
-	cp -f assets/*.WAV $(DIST)/
+WAVS     = $(patsubst assets/%,$(DIST)/%,$(wildcard assets/*.WAV))
+
+assets: $(WAVS)
+
+$(DIST)/%.WAV: assets/%.WAV | $(DIST)
+	cp -f $< $@
+
+# The floppy image.  The game lives in AUTO so that inserting the
+# disk and switching the machine on is the whole of the user
+# interface; the samples sit in the root, which is where an
+# AUTO-folder program's current directory points, and where the game
+# also writes KOULES.CFG and KOULES.LEV back.  KOULSFP4.TOS rides
+# along at the root for the machines that have a coprocessor - run
+# it from the desktop after quitting.
+$(DIST)/KOULES.ST: $(DIST)/KOULES.TOS $(SFPTARGET) $(WAVS) \
+                   tools/mkfloppy.py | $(DIST)
+	$(PYTHON) tools/mkfloppy.py -o $@ -l KOULES \
+	  $(DIST)/KOULES.TOS=AUTO/KOULES.PRG $(SFPTARGET) $(WAVS)
 
 $(DIST):
 	mkdir -p $(DIST)
@@ -188,6 +210,6 @@ floatcheck:
 
 clean:
 	rm -f $(DIST)/KOULES.TOS $(DIST)/KOULSFP4.TOS $(DIST)/KDEBUG.TOS $(DIST)/SFXTEST.TOS $(DIST)/BENCHX.TOS $(DIST)/BENCHF.TOS $(DIST)/PHASEX.TOS $(DIST)/PHASEF.TOS $(DIST)/PHASE30.TOS $(DIST)/PHASESFP.TOS
-	rm -f $(DIST)/*.WAV
+	rm -f $(DIST)/*.WAV $(DIST)/KOULES.ST
 
 .PHONY: all assets bench clean floatcheck

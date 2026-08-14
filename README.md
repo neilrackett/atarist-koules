@@ -72,6 +72,14 @@ doubles as a Hatari GEMDOS drive:
 hatari --machine st dist/KOULES.TOS
 ```
 
+It also writes `dist/KOULES.ST`, a 720K floppy image of the same build with
+the game in the `AUTO` folder, so it starts by itself on power-up — for
+Hatari, for a Gotek, or for a real disk:
+
+```
+hatari --machine st --disk-a dist/KOULES.ST
+```
+
 `make help` lists the other targets. See
 [stdl/README.md](stdl/README.md) for how the port works, and `README` for
 upstream's original documentation.
@@ -90,6 +98,10 @@ submodule). Without the FPU it detects the absence via the `_FPU` cookie and
 falls back to soft float, which is exactly the upstream physics the 16.16
 conversion replaced — charming, and about as slow as the 68000 gets. Not
 faster than the fixed-point build. Not the point.
+
+It also sits in the root of `dist/KOULES.ST`, so on a machine with the
+coprocessor it can be run from the desktop after quitting the `AUTO` folder
+build.
 
 ## To do
 
