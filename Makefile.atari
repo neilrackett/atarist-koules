@@ -76,7 +76,7 @@ FIXSRC   = physics.c fixed.c sintab.c
 GAMESRC  = koules.c menu.c gameplan.c framebuffer.c cmap.c rcfiles.c \
            krand.c $(FIXSRC) \
            stdl/init.c stdl/draw.c stdl/input.c stdl/intro.c \
-           stdl/sound.c
+           stdl/crawl.c stdl/sound.c
 # the SFP-004 build swaps the fixed point physics for upstream's
 # float physics with sqrt dispatched to the coprocessor
 SFPSRC   = $(subst $(FIXSRC),physics_sfp.c,$(GAMESRC))

@@ -20,13 +20,19 @@
 
 VScreenType     backscreen;     /* the page being drawn into          */
 VScreenType     background;     /* what RestoreBackground repaints    */
-VScreenType     starbackground; /* unused on the ST (see stdl/intro.c) */
+VScreenType     starbackground; /* unused: the crawl (stdl/crawl.c)
+                                   paints its stars into `background`
+                                   so the dirty-box restores keep them */
 
 VScreenType     current;
 
 /* SDL_gfx's 8x8 cell font, the same one the SDL backend draws with,
  * wrapped in an STDL_Font so glyphs come out pixel-identical. */
 static STDL_Font kfont = { 8, 8, 0, 255, 1, (uint8_t *) font_data };
+
+/* The scroller (stdl/crawl.c) scales the same glyphs; exporting the
+ * pointer keeps the 2KB font out of a second object file. */
+const uint8_t  *const crawl_font = font_data;
 
 /*
  * Page flipping.  Drawing a frame means erasing what moved and then
@@ -179,6 +185,14 @@ dirty (int x, int y, int w, int h)
   r.w = w;
   r.h = h;
   push (dpage, &r);
+}
+
+/* The scroller draws with raw STDL blits rather than PutBitmap, so
+   it records its boxes through this. */
+void
+DirtyBox (int x, int y, int w, int h)
+{
+  dirty (x, y, w, h);
 }
 
 /* Both pages have to be repainted in full. */
@@ -670,35 +684,6 @@ StatusBar (const char *lives, const char *scores)
 		     MAPWIDTH / 2 - (int) strlen (lastscores) * 4,
 		     MAPHEIGHT + 11, lastscores, C_WHITE);
     }
-}
-
-/*
- * Full-screen text page: the level briefings upstream scrolls past in
- * perspective with a vector font (see the report for what was cut).
- */
-void
-TextPage (const char *const *lines, int nlines)
-{
-  int             i, y;
-  VScreenType     save = current;
-
-  current = backscreen;
-  STDL_FillRect (backscreen, NULL, C_BG);
-  y = (MAPHEIGHT + 20 - nlines * 10) / 2;
-  if (y < 2)
-    y = 2;
-  for (i = 0; i < nlines && y < MAPHEIGHT + 12; i++, y += 10)
-    {
-      int             len = (int) strlen (lines[i]);
-      if (len > 40)
-	len = 40;
-      STDL_DrawText (backscreen, &kfont, MAPWIDTH / 2 - len * 4, y,
-		     lines[i], C_WHITE);
-    }
-  current = save;
-  drop_overlay ();              /* whatever was up has been painted over */
-  DirtyAll ();
-  nptout[0] = nptout[1] = 0;
 }
 
 /* ---------------------------------------------------------------- */

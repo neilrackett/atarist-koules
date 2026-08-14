@@ -174,7 +174,24 @@ void            FlushPoints (void);
 void            StatusBar (const char *lives, const char *scores);
 void            DirtyAll (void);
 
-/* Whole-screen text page used by the level intros (stdl/intro.c). */
-void            TextPage (const char *const *lines, int nlines);
+/*
+ * The starwars scroller (stdl/crawl.c).  CrawlText scrolls the lines
+ * past in perspective; the script - the line numbers the intro's
+ * choreography keys off, straight out of text.h - is passed so
+ * crawl.c does not have to include text.h's static arrays a second
+ * time.  NULL means no choreography, just text.
+ */
+typedef struct
+{
+  int             koulesline;   /* the six koules condense    */
+  int             playerline;   /* the player is born         */
+  int             d1line, d2line;       /* rings close in     */
+  int             bline;        /* the B_BALL arrives         */
+}
+CrawlScript;
+
+void            CrawlText (char *lines[], int n, const CrawlScript *sc);
+void            DirtyBox (int x, int y, int w, int h);
+extern const uint8_t *const crawl_font;
 
 #endif /* _KOULES_STDL_INTERFACE_H */

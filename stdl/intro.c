@@ -3,104 +3,27 @@
 *----------------------------------------------------------*
 *  Atari ST / STDL backend                                 *
 *----------------------------------------------------------*
-*  stdl/intro.c  level briefings                           *
+*  stdl/intro.c  intros and outros                         *
 *----------------------------------------------------------*
-* Upstream scrolls these into the distance in Star Wars     *
-* perspective, drawn with font.c: a 1000-line vector font   *
-* that builds every glyph out of lines and arcs and needs   *
-* sin/cos/atan per frame.  On an 8MHz 68000 that is a       *
-* per-pixel renderer running behind a 65fps target, which   *
-* is the wrong shape of work for a planar machine, so the   *
-* ST build shows the same words as a page instead of a      *
-* scroller.  Nothing else in the game depends on it -       *
-* gameplan.c only wants the briefing shown and the key      *
-* press waited for.                                         *
+* These used to be static text pages: upstream's crawl is   *
+* drawn with font.c, a vector font that projects and clips  *
+* every stroke per frame, which an 8MHz 68000 cannot do     *
+* behind a 65fps loop.  stdl/crawl.c re-renders the crawl   *
+* around scaled system-font billboards instead, so the      *
+* perspective scroller is back; this file is just the       *
+* routing.  gameplan.c only wants each briefing shown and   *
+* a key press honoured, and a key skips the crawl exactly   *
+* as it dismissed the pages.                                *
 ***********************************************************/
 /* Changes for Atari ST/STE with STDL                      *
  *  Copyright(c)2026 by Neil Rackett                       *
  ************************NR*********************************/
 
 #include <interface.h>
-#include <stdio.h>
-#include <string.h>
 
 #include "../koules.h"
 #include "../physics.h"
 #include "../text.h"
-
-#define PAGELINES 16
-#define NSTARS    100
-
-/*
- * One screenful: text, a scatter of stars, then wait for a key.
- * Returns 1 if the player asked to get on with it, which skips the
- * rest of the briefing - upstream's crawl aborts on a key too.
- */
-static int
-onepage (char *lines[], int n)
-{
-  uint32_t        t0;
-  int             j, skipped = 0;
-  STDL_Point      stars[NSTARS];
-
-  TextPage ((const char *const *) lines, n);
-
-  for (j = 0; j < NSTARS; j++)
-    {
-      stars[j].x = KRAND_N (MAPWIDTH);
-      stars[j].y = KRAND_N (MAPHEIGHT + 20);
-    }
-  STDL_Points (backscreen, stars, NSTARS, C_GREY);
-  CopyToScreen (backscreen);    /* nothing flips again while it is up */
-
-  fadein ();
-  UpdateInput ();
-  while (Pressed ())            /* let go of whatever brought us here */
-    UpdateInput ();
-  t0 = STDL_GetTicks ();
-  while (STDL_GetTicks () - t0 < 6000)
-    {
-      UpdateInput ();
-      if (Pressed ())
-	{
-	  skipped = 1;
-	  break;
-	}
-      STDL_Delay (20);
-    }
-  while (Pressed ())
-    UpdateInput ();
-  fadeout ();
-  return skipped;
-}
-
-/* Show a block of lines, a page at a time. */
-static void
-page (char *lines[], int n)
-{
-  char           *shown[PAGELINES];
-  int             i, nshow = 0;
-
-  fadeout ();
-  for (i = 0; i < n; i++)
-    {
-      /* upstream's "..." lines are scroller beats, not content */
-      if (lines[i] == NULL || lines[i][0] == '\0'
-	  || !strcmp (lines[i], "..."))
-	continue;
-      shown[nshow++] = lines[i];
-      if (nshow == PAGELINES)
-	{
-	  nshow = 0;
-	  if (onepage (shown, PAGELINES))
-	    break;
-	  fadeout ();
-	}
-    }
-  if (nshow)
-    onepage (shown, nshow);
-  tbreak = 1;
-}
 
 void
 clearpoints ()
@@ -111,87 +34,109 @@ clearpoints ()
   npoint = 0;
 }
 
-/* The opening crawl.  Same treatment: the title page, then play. */
+/* The opening crawl, with upstream's full choreography: the koules
+ * condense, the player is born, the rings close in, the B_BALL
+ * arrives and the hero runs away. */
 void
 starwars ()
 {
-  page (text, TEXTSIZE);
+  CrawlScript     sc;
+  sc.koulesline = KOULESLINE;
+  sc.playerline = PLAYERLINE;
+  sc.d1line = D1LINE;
+  sc.d2line = D2LINE;
+  sc.bline = BLINE;
+  clearpoints ();
+  CrawlText (text, TEXTSIZE, &sc);
 }
 
 void
 outro1 ()
 {
-  page (text1, TEXTSIZE1);
+  clearpoints ();
+  CrawlText (text1, TEXTSIZE1, NULL);
 }
 
 void
 outro2 ()
 {
-  page (text2, TEXTSIZE2);
+  clearpoints ();
+  CrawlText (text2, TEXTSIZE2, NULL);
 }
 
 void
 intro_intro ()
 {
-  page (introtext, INTROSIZE);
+  clearpoints ();
+  CrawlText (introtext, INTROSIZE, NULL);
 }
 
 void
 hole_intro ()
 {
-  page (holetext, HOLESIZE);
+  clearpoints ();
+  CrawlText (holetext, HOLESIZE, NULL);
 }
 
 void
 inspector_intro ()
 {
-  page (inspectortext, INSPECTORSIZE);
+  clearpoints ();
+  CrawlText (inspectortext, INSPECTORSIZE, NULL);
 }
 
 void
 bball_intro ()
 {
-  page (bballtext, BBALLSIZE);
+  clearpoints ();
+  CrawlText (bballtext, BBALLSIZE, NULL);
 }
 
 void
 bbball_intro ()
 {
-  page (bbballtext, BBBALLSIZE);
+  clearpoints ();
+  CrawlText (bbballtext, BBBALLSIZE, NULL);
 }
 
 void
 maghole_intro ()
 {
-  page (magholetext, MAGSIZE);
+  clearpoints ();
+  CrawlText (magholetext, MAGSIZE, NULL);
 }
 
 void
 spring_intro ()
 {
-  page (springtext, SPRINGTSIZE);
+  clearpoints ();
+  CrawlText (springtext, SPRINGTSIZE, NULL);
 }
 
 void
 thief_intro ()
 {
-  page (thieftext, THIEFSIZE);
+  clearpoints ();
+  CrawlText (thieftext, THIEFSIZE, NULL);
 }
 
 void
 ttool_intro ()
 {
-  page (ttooltext, TTOOLSIZE);
+  clearpoints ();
+  CrawlText (ttooltext, TTOOLSIZE, NULL);
 }
 
 void
 finder_intro ()
 {
-  page (findertext, FINDERSIZE);
+  clearpoints ();
+  CrawlText (findertext, FINDERSIZE, NULL);
 }
 
 void
 lunatic_intro ()
 {
-  page (lunatictext, LUNATICSIZE);
+  clearpoints ();
+  CrawlText (lunatictext, LUNATICSIZE, NULL);
 }
