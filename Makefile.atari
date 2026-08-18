@@ -58,28 +58,28 @@ endif
 
 # -m68000 is the correctness floor: a plain ST, no 020+ instructions.
 CFLAGS   = -O2 -m68000 -fomit-frame-pointer -std=gnu99 -Wall -Wextra \
-           -Wno-unused-parameter -I. -Isim
+           -Wno-unused-parameter -Isrc -Isrc/sim
 # Hatari GEMDOS-mounts the program's directory as a hard disk, and
 # the default stack is too small for that path.
 LDFLAGS  = -Wl,--traditional-format,--stack=32768
 
 GAMEFLAGS = -O2 -m68000 -fomit-frame-pointer -std=gnu99 -Wall -Wextra \
-            -Wno-unused-parameter -I. -Istdl -I$(STDL)/include \
+            -Wno-unused-parameter -Isrc -Isrc/stdl -I$(STDL)/include \
             -DNODIRECT -DSTDLSUPPORT -DSOUND
 GAMELIBS  = $(STDL_LIB)
 # extra defines for the diagnostic build, e.g. DBGFLAGS='-DMAXACTIVE=16'
 DBGFLAGS ?=
 
 DIST     = dist
-SIMSRC   = sim/bench.c sim/scenario.c krand.c
-FIXSRC   = physics.c fixed.c sintab.c
-GAMESRC  = koules.c menu.c gameplan.c framebuffer.c cmap.c rcfiles.c \
-           krand.c $(FIXSRC) \
-           stdl/init.c stdl/draw.c stdl/input.c stdl/intro.c \
-           stdl/crawl.c stdl/sound.c
+SIMSRC   = src/sim/bench.c src/sim/scenario.c src/krand.c
+FIXSRC   = src/physics.c src/fixed.c src/sintab.c
+GAMESRC  = src/koules.c src/menu.c src/gameplan.c src/framebuffer.c \
+           src/cmap.c src/rcfiles.c src/krand.c $(FIXSRC) \
+           src/stdl/init.c src/stdl/draw.c src/stdl/input.c \
+           src/stdl/intro.c src/stdl/crawl.c src/stdl/sound.c
 # the SFP-004 build swaps the fixed point physics for upstream's
 # float physics with sqrt dispatched to the coprocessor
-SFPSRC   = $(subst $(FIXSRC),physics_sfp.c,$(GAMESRC))
+SFPSRC   = $(subst $(FIXSRC),src/physics_sfp.c,$(GAMESRC))
 SFPFLAGS = $(GAMEFLAGS) -DKOULES_FLOAT -DKOULES_SFP004 -I$(SFP004)
 
 # the SFP-004 targets only when the library is checked out somewhere
@@ -127,56 +127,56 @@ $(STDL_LIB):
 $(SFP004_LIB):
 	$(MAKE) -C $(SFP004) lib
 
-$(DIST)/KOULES.TOS: $(GAMESRC) koules.h sound.h physics.h fixed.h gamedim.h \
-                    stdl/interface.h stdl/font8x8.h text.h $(GAMELIBS) \
+$(DIST)/KOULES.TOS: $(GAMESRC) src/koules.h src/sound.h src/physics.h src/fixed.h src/gamedim.h \
+                    src/stdl/interface.h src/stdl/font8x8.h src/text.h $(GAMELIBS) \
                     | $(DIST)
 	$(CC) $(GAMEFLAGS) $(LDFLAGS) -o $@ $(GAMESRC) $(GAMELIBS)
 	$(STRIP) $@
 
 # -lm: ksqrt's fallback and the rest of the float physics soft-float
 # through libm on machines without the coprocessor.
-$(DIST)/KOULSFP4.TOS: $(SFPSRC) sim/physics_float.c koules.h sound.h \
-                    physics.h gamedim.h \
-                    stdl/interface.h stdl/font8x8.h text.h $(GAMELIBS) \
+$(DIST)/KOULSFP4.TOS: $(SFPSRC) src/sim/physics_float.c src/koules.h src/sound.h \
+                    src/physics.h src/gamedim.h \
+                    src/stdl/interface.h src/stdl/font8x8.h src/text.h $(GAMELIBS) \
                     $(SFP004_LIB) | $(DIST)
 	$(CC) $(SFPFLAGS) $(LDFLAGS) -o $@ $(SFPSRC) $(GAMELIBS) $(SFP004_LIB) -lm
 	$(STRIP) $@
 
 # Plays the seven effects in id order with console markers and
 # exits, so a Hatari sound capture can be checked effect by effect.
-$(DIST)/SFXTEST.TOS: $(GAMESRC) koules.h sound.h $(GAMELIBS) | $(DIST)
+$(DIST)/SFXTEST.TOS: $(GAMESRC) src/koules.h src/sound.h $(GAMELIBS) | $(DIST)
 	$(CC) $(GAMEFLAGS) -DKOULES_SOUNDTEST $(LDFLAGS) -o $@ $(GAMESRC) $(GAMELIBS)
 	$(STRIP) $@
 
 # Same binary with a once-a-second frame report on the console: the
 # ST prints onto the playfield, so this is a diagnostic build rather
 # than a switch in the shipped one.
-$(DIST)/KDEBUG.TOS: $(GAMESRC) koules.h $(GAMELIBS) | $(DIST)
+$(DIST)/KDEBUG.TOS: $(GAMESRC) src/koules.h $(GAMELIBS) | $(DIST)
 	$(CC) $(GAMEFLAGS) -DKOULES_DEBUG $(DBGFLAGS) $(LDFLAGS) -o $@ $(GAMESRC) $(GAMELIBS)
 	$(STRIP) $@
 
-$(DIST)/BENCHX.TOS: $(SIMSRC) $(FIXSRC) koules.h physics.h fixed.h gamedim.h | $(DIST)
+$(DIST)/BENCHX.TOS: $(SIMSRC) $(FIXSRC) src/koules.h src/physics.h src/fixed.h src/gamedim.h | $(DIST)
 	$(CC) $(CFLAGS) $(LDFLAGS) -o $@ $(SIMSRC) $(FIXSRC)
 
-$(DIST)/BENCHF.TOS: $(SIMSRC) sim/physics_float.c koules.h physics.h gamedim.h | $(DIST)
-	$(CC) $(CFLAGS) $(LDFLAGS) -DKOULES_FLOAT -o $@ $(SIMSRC) sim/physics_float.c -lm
+$(DIST)/BENCHF.TOS: $(SIMSRC) src/sim/physics_float.c src/koules.h src/physics.h src/gamedim.h | $(DIST)
+	$(CC) $(CFLAGS) $(LDFLAGS) -DKOULES_FLOAT -o $@ $(SIMSRC) src/sim/physics_float.c -lm
 
-$(DIST)/PHASEX.TOS: sim/phases.c sim/scenario.c krand.c $(FIXSRC) koules.h physics.h fixed.h gamedim.h | $(DIST)
-	$(CC) $(CFLAGS) $(LDFLAGS) -o $@ sim/phases.c sim/scenario.c krand.c $(FIXSRC)
+$(DIST)/PHASEX.TOS: src/sim/phases.c src/sim/scenario.c src/krand.c $(FIXSRC) src/koules.h src/physics.h src/fixed.h src/gamedim.h | $(DIST)
+	$(CC) $(CFLAGS) $(LDFLAGS) -o $@ src/sim/phases.c src/sim/scenario.c src/krand.c $(FIXSRC)
 
-$(DIST)/PHASE30.TOS: sim/phases.c sim/scenario.c krand.c $(FIXSRC) koules.h physics.h fixed.h gamedim.h | $(DIST)
-	$(CC) $(CFLAGS) $(LDFLAGS) -DN=30 -o $@ sim/phases.c sim/scenario.c krand.c $(FIXSRC)
+$(DIST)/PHASE30.TOS: src/sim/phases.c src/sim/scenario.c src/krand.c $(FIXSRC) src/koules.h src/physics.h src/fixed.h src/gamedim.h | $(DIST)
+	$(CC) $(CFLAGS) $(LDFLAGS) -DN=30 -o $@ src/sim/phases.c src/sim/scenario.c src/krand.c $(FIXSRC)
 
-$(DIST)/PHASEF.TOS: sim/phases.c sim/scenario.c krand.c sim/physics_float.c koules.h physics.h gamedim.h | $(DIST)
-	$(CC) $(CFLAGS) $(LDFLAGS) -DKOULES_FLOAT -o $@ sim/phases.c sim/scenario.c krand.c sim/physics_float.c -lm
+$(DIST)/PHASEF.TOS: src/sim/phases.c src/sim/scenario.c src/krand.c src/sim/physics_float.c src/koules.h src/physics.h src/gamedim.h | $(DIST)
+	$(CC) $(CFLAGS) $(LDFLAGS) -DKOULES_FLOAT -o $@ src/sim/phases.c src/sim/scenario.c src/krand.c src/sim/physics_float.c -lm
 
 # PHASEF with the KOULSFP4 physics: sqrt dispatched to the 68882.
 # The interesting run is on the real coprocessor - without it the
 # fallback makes this PHASEF plus a cookie check per sqrt.
-$(DIST)/PHASESFP.TOS: sim/phases.c sim/scenario.c krand.c physics_sfp.c \
-                    sim/physics_float.c koules.h physics.h gamedim.h \
+$(DIST)/PHASESFP.TOS: src/sim/phases.c src/sim/scenario.c src/krand.c src/physics_sfp.c \
+                    src/sim/physics_float.c src/koules.h src/physics.h src/gamedim.h \
                     $(SFP004_LIB) | $(DIST)
-	$(CC) $(CFLAGS) -DKOULES_FLOAT -DKOULES_SFP004 -I$(SFP004) $(LDFLAGS) -o $@ sim/phases.c sim/scenario.c krand.c physics_sfp.c $(SFP004_LIB) -lm
+	$(CC) $(CFLAGS) -DKOULES_FLOAT -DKOULES_SFP004 -I$(SFP004) $(LDFLAGS) -o $@ src/sim/phases.c src/sim/scenario.c src/krand.c src/physics_sfp.c $(SFP004_LIB) -lm
 
 # Proof that no floating point survives in the fixed build: gcc
 # emits calls to these libgcc soft-float helpers for every float
@@ -199,7 +199,7 @@ floatcheck:
 	   && (echo "FAIL: floating point survives"; exit 1) \
 	   || echo "  none - clean"
 	@rm -rf $(DIST)/objcheckf && mkdir -p $(DIST)/objcheckf
-	@for f in $(SIMSRC) sim/physics_float.c; do \
+	@for f in $(SIMSRC) src/sim/physics_float.c; do \
 	   o=$(DIST)/objcheckf/`basename $$f .c`.o; \
 	   $(CC) $(CFLAGS) -DKOULES_FLOAT -c -o $$o $$f; \
 	 done

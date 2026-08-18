@@ -7,25 +7,29 @@
 
 CC      ?= cc
 CFLAGS  ?= -O2 -g -Wall -Wextra -Wno-unused-parameter -std=gnu99
-INC      = -I. -Isim
+INC      = -Isrc -Isrc/sim
 
-COMMON   = sim/dump.c sim/scenario.c krand.c
-FIXED    = physics.c fixed.c sintab.c
+DIST     = dist
+COMMON   = src/sim/dump.c src/sim/scenario.c src/krand.c
+FIXED    = src/physics.c src/fixed.c src/sintab.c
 
-all: sim/dumpf sim/dumpx
+all: $(DIST)/dumpf $(DIST)/dumpx
 
-sim/dumpf: $(COMMON) sim/physics_float.c koules.h physics.h
-	$(CC) $(CFLAGS) $(INC) -DKOULES_FLOAT -o $@ $(COMMON) sim/physics_float.c -lm
+$(DIST):
+	mkdir -p $(DIST)
 
-sim/dumpx: $(COMMON) $(FIXED) koules.h physics.h fixed.h
+$(DIST)/dumpf: $(COMMON) src/sim/physics_float.c src/koules.h src/physics.h | $(DIST)
+	$(CC) $(CFLAGS) $(INC) -DKOULES_FLOAT -o $@ $(COMMON) src/sim/physics_float.c -lm
+
+$(DIST)/dumpx: $(COMMON) $(FIXED) src/koules.h src/physics.h src/fixed.h | $(DIST)
 	$(CC) $(CFLAGS) $(INC) -o $@ $(COMMON) $(FIXED)
 
-check: sim/dumpf sim/dumpx
+check: $(DIST)/dumpf $(DIST)/dumpx
 	@for n in 5 10 20 30; do \
-	  ./sim/dumpf $$n 300 12345 > /tmp/koules_f_$$n.csv; \
-	  ./sim/dumpx $$n 300 12345 > /tmp/koules_x_$$n.csv; \
-	  python3 sim/compare.py /tmp/koules_f_$$n.csv /tmp/koules_x_$$n.csv $$n; \
+	  ./$(DIST)/dumpf $$n 300 12345 > /tmp/koules_f_$$n.csv; \
+	  ./$(DIST)/dumpx $$n 300 12345 > /tmp/koules_x_$$n.csv; \
+	  python3 src/sim/compare.py /tmp/koules_f_$$n.csv /tmp/koules_x_$$n.csv $$n; \
 	done
 
 clean:
-	rm -f sim/dumpf sim/dumpx
+	rm -f $(DIST)/dumpf $(DIST)/dumpx

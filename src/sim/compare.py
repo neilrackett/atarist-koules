@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Diff two runs of sim/dump (upstream float vs 16.16 fixed point).
+Diff two runs of src/sim/dump (upstream float vs 16.16 fixed point).
 
 The two are not expected to agree bit for bit -- the point of the
 exercise is to find out *how much* they disagree and whether the

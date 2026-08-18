@@ -10,8 +10,6 @@ koules.sdl
 xkoules
 dist/
 tests/hatari/out/
-sim/dumpf
-sim/dumpx
-sim/*.dSYM/
+*.dSYM/
 .DS_Store
 .depend

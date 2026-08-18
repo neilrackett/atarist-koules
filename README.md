@@ -81,7 +81,7 @@ hatari --machine st --disk-a dist/KOULES.ST
 ```
 
 `make help` lists the other targets. See
-[stdl/README.md](stdl/README.md) for how the port works, and `README` for
+[src/stdl/README.md](src/stdl/README.md) for how the port works, and `README` for
 upstream's original documentation.
 
 ### KOULSFP4.TOS: the FPU build

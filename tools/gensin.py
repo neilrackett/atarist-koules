@@ -12,7 +12,7 @@ fixsin()/fixcos() need no range reduction for any angle the game
 forms: rotation is 0..359, eye placement adds +/-30, the exhaust
 spray adds -22..+22, and fixcos() adds a further 90.
 
-    python3 tools/gensin.py > sintab.c
+    python3 tools/gensin.py > src/sintab.c
 """
 
 import math
@@ -23,7 +23,7 @@ SPAN = 1080 + 90    # -360 .. +719, plus the cosine's 90 of headroom
 print('''/***********************************************************
 *                      K O U L E S                         *
 *----------------------------------------------------------*
-*  sintab.c - sine table for the fixed point build         *
+*  src/sintab.c - sine table for the fixed point build     *
 *                                                          *
 *  GENERATED - see tools/gensin.py.  Do not hand edit.     *
 *                                                          *

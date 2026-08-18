@@ -1,7 +1,7 @@
 /***********************************************************
 *                      K O U L E S                         *
 *----------------------------------------------------------*
-*  sintab.c - sine table for the fixed point build         *
+*  src/sintab.c - sine table for the fixed point build     *
 *                                                          *
 *  GENERATED - see tools/gensin.py.  Do not hand edit.     *
 *                                                          *

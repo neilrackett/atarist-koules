@@ -1,6 +1,6 @@
 /***********************************************************
-*  sim/scenario.h - deterministic scenario, shared by the  *
-*  numeric harness and the on-target benchmark             *
+*  src/sim/scenario.h - deterministic scenario, shared     *
+*  by the numeric harness and the on-target benchmark      *
 ***********************************************************/
 /* Changes for Atari ST/STE with STDL                      *
  *  Copyright(c)2026 by Neil Rackett                       *

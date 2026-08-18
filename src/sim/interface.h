@@ -1,7 +1,7 @@
 /***********************************************************
 *                      K O U L E S                         *
 *----------------------------------------------------------*
-*  sim/interface.h - headless stand-in for a backend       *
+*  src/sim/interface.h - headless stand-in for a backend   *
 *                                                          *
 *  koules.h does #include <interface.h> to pick up the      *
 *  backend's types and playfield geometry.  The numeric     *
