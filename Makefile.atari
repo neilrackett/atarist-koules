@@ -118,10 +118,21 @@ $(DIST)/KOULES.ST: $(DIST)/KOULES.TOS $(SFPTARGET) $(WAVS) \
 $(DIST):
 	mkdir -p $(DIST)
 
-# Build the library from the submodule when its archive is missing,
-# so a fresh clone needs one command. An existing archive is left
-# alone - rebuild it deliberately with make -C $(STDL).
-$(STDL_LIB):
+# Build the library from the submodule when its archive is missing, so
+# a fresh clone needs one command, and rebuild it when its sources have
+# moved. The archive used to have no prerequisites at all, which meant a
+# submodule bump silently kept linking the old library: the binary came
+# out byte identical and nothing said why.
+#
+# Both source directories are listed. STDL's own xpad consumer lives in
+# its lib/xpad submodule rather than under src/, so a pattern that only
+# watched src/ would miss exactly the file a bump is most likely to
+# change.
+STDL_SRCS = $(wildcard $(STDL)/src/*.c) $(wildcard $(STDL)/src/*.h) \
+            $(wildcard $(STDL)/lib/xpad/src/*.c) \
+            $(wildcard $(STDL)/lib/xpad/src/*.h)
+
+$(STDL_LIB): $(STDL_SRCS)
 	$(MAKE) -C $(STDL) libstdl.a
 
 $(SFP004_LIB):
