@@ -138,34 +138,34 @@ static const uint16_t start_p[6] = {
   STDL_YM_PERIOD (262), STDL_YM_PERIOD (330), STDL_YM_PERIOD (392),
   STDL_YM_PERIOD (523), STDL_YM_PERIOD (659), STDL_YM_PERIOD (784)
 };
-static const STDL_Sfx start_fx = { start_p, NULL, 6, 12, 60, 0 };
+static const STDL_Sfx start_fx = { start_p, NULL, 6, 12, 60, 0, NULL };
 
 /* falling figure - a level ends */
 static const uint16_t end_p[6] = {
   STDL_YM_PERIOD (659), STDL_YM_PERIOD (523), STDL_YM_PERIOD (392),
   STDL_YM_PERIOD (330), STDL_YM_PERIOD (262), STDL_YM_PERIOD (196)
 };
-static const STDL_Sfx end_fx = { end_p, NULL, 6, 12, 80, 0 };
+static const STDL_Sfx end_fx = { end_p, NULL, 6, 12, 80, 0, NULL };
 
 /* the collision tick: two frames, quiet, high - it has to survive
  * being fired continuously without becoming a drone */
 static const uint16_t colize_p[2] = {
   STDL_YM_PERIOD (1568), STDL_YM_PERIOD (1047)
 };
-static const STDL_Sfx colize_fx = { colize_p, NULL, 2, 7, 20, 0 };
+static const STDL_Sfx colize_fx = { colize_p, NULL, 2, 7, 20, 0, NULL };
 
 /* a ball goes: short bright burst */
 static const uint16_t noise_p[14] = {
   1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1
 };
 static const uint8_t dball_v[8] = { 14, 13, 11, 9, 7, 5, 3, 1 };
-static const STDL_Sfx dball_fx = { noise_p, dball_v, 8, 14, 30, 12 };
+static const STDL_Sfx dball_fx = { noise_p, dball_v, 8, 14, 30, 12, NULL };
 
 /* a rocket goes: longer, deeper, louder */
 static const uint8_t drocket_v[14] = {
   15, 15, 14, 14, 13, 12, 11, 10, 8, 7, 5, 4, 2, 1
 };
-static const STDL_Sfx drocket_fx = { noise_p, drocket_v, 14, 15, 40, 28 };
+static const STDL_Sfx drocket_fx = { noise_p, drocket_v, 14, 15, 40, 28, NULL };
 
 /* a creator spawns: low warble */
 static const uint16_t creator1_p[8] = {
@@ -173,13 +173,13 @@ static const uint16_t creator1_p[8] = {
   STDL_YM_PERIOD (196), STDL_YM_PERIOD (165), STDL_YM_PERIOD (220),
   STDL_YM_PERIOD (185), STDL_YM_PERIOD (247)
 };
-static const STDL_Sfx creator1_fx = { creator1_p, NULL, 8, 11, 50, 0 };
+static const STDL_Sfx creator1_fx = { creator1_p, NULL, 8, 11, 50, 0, NULL };
 
 /* short blip - also the menu's key click */
 static const uint16_t creator2_p[3] = {
   STDL_YM_PERIOD (880), STDL_YM_PERIOD (1319), STDL_YM_PERIOD (1047)
 };
-static const STDL_Sfx creator2_fx = { creator2_p, NULL, 3, 10, 30, 0 };
+static const STDL_Sfx creator2_fx = { creator2_p, NULL, 3, 10, 30, 0, NULL };
 
 static const STDL_Sfx *const ymfx[NSOUNDS] = {
   &start_fx, &end_fx, &colize_fx, &dball_fx, &drocket_fx,
