@@ -32,6 +32,7 @@
  *  Copyright(c)2026 by Neil Rackett                       *
  ************************NR*********************************/
 
+#include <string.h>
 #include "koules.h"
 
 static INLINE int
@@ -76,17 +77,62 @@ static CONST unsigned char basepal[16][3] = {
 
 int             fadedout = 0;
 
+/*
+ * 256 colours (a TT or a Falcon): upstream's ramps, from its own
+ * formulas, at the bases koules.h names. The grey runs bright to dark
+ * like the others, where upstream's ran the other way for its stars;
+ * entry 0 keeps the playfield blue the sixteen have.
+ */
+static void
+palette256 (Palette * pal)
+{
+  int             i;
+
+  memset (pal, 0, sizeof (*pal));
+  for (i = 0; i < 32; i++)
+    {
+      int             k = i + 1, v = (32 - i) << 1;
+      int             w = (8 - k) > 0 ? 8 - k : 0;
+
+      pal->color[32 + i].blue = (unsigned char) (i << 1);
+      pal->color[64 + i].red = (unsigned char) v;
+      pal->color[64 + i].green = pal->color[64 + i].blue =
+	(unsigned char) ((w << 5) / 5);
+      pal->color[96 + i].red = pal->color[96 + i].green = (unsigned char) v;
+      pal->color[96 + i].blue = (unsigned char) (w << 3);
+      pal->color[128 + i].green = (unsigned char) v;
+      pal->color[128 + i].red = pal->color[128 + i].blue =
+	(unsigned char) (w << 3);
+      pal->color[160 + i].blue = (unsigned char) v;
+      pal->color[160 + i].red = pal->color[160 + i].green =
+	(unsigned char) ((w << 3) / 2);
+      pal->color[192 + i].red = pal->color[192 + i].green =
+	pal->color[192 + i].blue = (unsigned char) (v > 63 ? 63 : v);
+    }
+  pal->color[0].blue = 18;
+  pal->color[255].red = pal->color[255].green = pal->color[255].blue = 63;
+}
+
 void
 setcustompalette (CONST int p, CONST float p1)
 {
   Palette         pal;
   int             i;
 
-  for (i = 0; i < COLORS; i++)
+  if (k256)
+    palette256 (&pal);
+  else
+    for (i = 0; i < 16; i++)
+      {
+	pal.color[i].red = basepal[i][0];
+	pal.color[i].green = basepal[i][1];
+	pal.color[i].blue = basepal[i][2];
+      }
+  for (i = 0; i < NCOLOURS; i++)
     {
-      pal.color[i].red = col (basepal[i][0] + p, p1);
-      pal.color[i].green = col (basepal[i][1] + p, p1);
-      pal.color[i].blue = col (basepal[i][2] + p, p1);
+      pal.color[i].red = col (pal.color[i].red + p, p1);
+      pal.color[i].green = col (pal.color[i].green + p, p1);
+      pal.color[i].blue = col (pal.color[i].blue + p, p1);
     }
   WaitRetrace ();
   SetPalette (&pal);

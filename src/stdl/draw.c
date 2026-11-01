@@ -710,7 +710,7 @@ SetPalette (Palette * pal)
   STDL_Colour     c[COLORS];
   int             i;
 
-  for (i = 0; i < COLORS; i++)
+  for (i = 0; i < NCOLOURS; i++)
     {
       /* upstream keeps 0..63 VGA components; the ST wants 0..255 */
       c[i].r = pal->color[i].red << 2;
@@ -718,5 +718,5 @@ SetPalette (Palette * pal)
       c[i].b = pal->color[i].blue << 2;
       c[i].unused = 0;
     }
-  STDL_SetColours (backscreen, c, 0, COLORS);
+  STDL_SetColours (backscreen, c, 0, NCOLOURS);
 }

@@ -54,8 +54,7 @@ BitmapType      bball_bitmap, apple_bitmap, inspector_bitmap, mouse_bitmap,
                 ehole_bitmap;
 /* One ramp base per player. Upstream repeated yellow for players 1
  * and 4; there are exactly five ramps here, so each gets its own. */
-unsigned char   rocketcolor[5] =
-{C_YELLOW, C_BLUE, C_RED, C_GREEN, C_GREY};
+unsigned char   rocketcolor[5];       /* set once the depth is known */
 #ifdef SOUND
 int             sndinit = 1;
 #endif
@@ -157,11 +156,17 @@ static void help(int x,int y,int radius,char *text)
    }
 }
 char            str[2];
-#ifdef KOULES_DEBUG
+#if defined(KOULES_DEBUG) || defined(KOULES_BENCH)
 uint32_t        ph_restore, ph_points, ph_obj, ph_over, ph_stat, ph_step;
 uint32_t        ph_flip;        /* page flip: the wait for the raster */
 uint32_t        ph_pump;        /* event pump, incl. the sound refill */
-#define PHASE(acc) do { uint32_t now = STDL_GetTicks (); \
+#ifdef KOULES_BENCH
+/* the bench's finer clock (stdl_responsive.h): 38,400 a second */
+#define PHCLOCK() STDL_RespClock ()
+#else
+#define PHCLOCK() STDL_GetTicks ()
+#endif
+#define PHASE(acc) do { uint32_t now = PHCLOCK (); \
                         acc += now - phmark; phmark = now; } while (0)
 #else
 #define PHASE(acc) do { } while (0)
@@ -170,8 +175,8 @@ static void
 draw_objects (CONST int draw)
 {
   int             i;
-#ifdef KOULES_DEBUG
-  uint32_t        phmark = STDL_GetTicks ();
+#if defined(KOULES_DEBUG) || defined(KOULES_BENCH)
+  uint32_t        phmark = PHCLOCK ();
 #endif
   /*
    * Before the restore, not after: leaving a menu hands the
@@ -336,12 +341,12 @@ draw_objects (CONST int draw)
 			   APPLE_RADIUS * 2 / DIV, APPLE_RADIUS * 2 / DIV, apple_bitmap);
 		EnableClipping ();
 		Line ((ox + 10) / DIV, (oy - APPLE_RADIUS - 10) / DIV,
-		      ox / DIV, (oy - APPLE_RADIUS + 10) / DIV, C_GREEN + 1);
+		      ox / DIV, (oy - APPLE_RADIUS + 10) / DIV, KSTEP (C_GREEN, 1));
 		Line ((ox + 10) / DIV + 1, (oy - APPLE_RADIUS - 10) / DIV,
-		      ox / DIV + 1, (oy - APPLE_RADIUS + 10) / DIV, C_GREEN + 1);
+		      ox / DIV + 1, (oy - APPLE_RADIUS + 10) / DIV, KSTEP (C_GREEN, 1));
 		if (DIV == 1)
 		  Line ((ox + 10) / DIV + 2, (oy - APPLE_RADIUS - 10) / DIV,
-			ox / DIV + 2, (oy - APPLE_RADIUS + 10) / DIV, C_GREEN + 1);
+			ox / DIV + 2, (oy - APPLE_RADIUS + 10) / DIV, KSTEP (C_GREEN, 1));
 		DisableClipping ();
 		PutBitmap ((ox - EYE_RADIUS) / DIV,
 			   (oy + APPLE_RADIUS - 15) / DIV,
@@ -781,6 +786,15 @@ process_keys ()
  * frame, draw only when the frame still has time left in it.
  */
 #define VFTIME (1000 / 25)      /* 40ms - upstream's 1000000/25 */
+
+#ifdef KOULES_BENCH
+/* the bench (stdl/bench.c) draws its frames through this */
+void
+kbench_draw (int draw)
+{
+  draw_objects (draw);
+}
+#endif
 
 void
 game ()

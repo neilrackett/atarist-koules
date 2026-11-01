@@ -82,16 +82,28 @@ extern int      nomouse;
  * letter ball and the stars, all small.  SHADE() clamps, so code that
  * asks for a third grey gets the darkest one rather than colour 16.
  */
+/*
+ * On a TT or a Falcon the screen has 256 colours (k256, stdl/init.c),
+ * and the ramps are upstream's own: 32 shades from 64 (red), 96
+ * (yellow), 128 (green), 160 (blue) and 192 (grey), white at 255,
+ * upstream's background ramp at 32. They run bright to dark as the
+ * sixteen do, so the code below reads the same at either depth.
+ */
+extern int      k256;
+
 #define C_BG      0             /* flat playfield; also the sprite key */
 #define C_KEY     0
-#define C_WHITE   1
-#define C_RED     2
-#define C_GREEN   5
-#define C_BLUE    8
-#define C_YELLOW 11
-#define C_GREY   14
+#define C_WHITE   (k256 ? 255 : 1)
+#define C_RED     (k256 ? 64 : 2)
+#define C_GREEN   (k256 ? 128 : 5)
+#define C_BLUE    (k256 ? 160 : 8)
+#define C_YELLOW  (k256 ? 96 : 11)
+#define C_GREY    (k256 ? 192 : 14)
 
-#define RAMPLEN(base)   ((base) == C_GREY ? 2 : ((base) == C_WHITE ? 1 : 3))
+#define RAMPLEN(base)   (k256 ? ((base) == C_WHITE ? 1 : 32) \
+                         : (base) == C_GREY ? 2 : ((base) == C_WHITE ? 1 : 3))
+/* s of the sixteen colours' shade steps along a ramp at either depth */
+#define KSTEP(base, s)  ((base) + (k256 ? (s) * 14 : (s)))
 #define SHADE(base, s)  ((base) + ((s) < RAMPLEN (base) \
                                    ? (s) : RAMPLEN (base) - 1))
 
@@ -101,9 +113,12 @@ extern int      nomouse;
  *   back(0) playfield, back(16) the line under it;
  *   ball(0) lit red, ball(2) mid, ball(20) dark.
  */
-#define back(x)   ((x) >= 16 ? C_BLUE + 1 : C_BG)
-#define ball(x)   (C_RED + ((x) >= 20 ? 2 : ((x) >= 2 ? 1 : 0)))
-#define rocket(x) (C_YELLOW + ((x) >= 20 ? 2 : ((x) >= 2 ? 1 : 0)))
+#define back(x)   (k256 ? ((x) ? 32 + (x) : C_BG) \
+                   : (x) >= 16 ? C_BLUE + 1 : C_BG)
+#define ball(x)   (k256 ? 64 + (x) \
+                   : C_RED + ((x) >= 20 ? 2 : ((x) >= 2 ? 1 : 0)))
+#define rocket(x) (k256 ? 96 + (x) \
+                   : C_YELLOW + ((x) >= 20 ? 2 : ((x) >= 2 ? 1 : 0)))
 
 /*
  * Pre-shifted sprites make unaligned blits as cheap as aligned ones

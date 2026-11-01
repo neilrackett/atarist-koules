@@ -28,6 +28,29 @@
 
 int             sprite_flags = 0;
 
+#ifdef KOULES_CMINI
+/* libcmini takes the stack's size from here; mintlib from the link's
+ * --stack (Makefile.atari) */
+long            _stksize = 32768;
+#endif
+
+/*
+ * 256 colours on a TT or a Falcon (STDL's stdl_responsive.h): whether
+ * this build asks for them (KOULES_RESPONSIVE; the bench build,
+ * KOULDB.TOS, takes it from KOULBNCH.CFG), and whether the screen it
+ * got has them.
+ */
+#ifndef KOULES_RESPONSIVE
+#define KOULES_RESPONSIVE 0
+#endif
+int             kresponsive = KOULES_RESPONSIVE;
+int             k256;
+#ifdef KOULES_BENCH
+extern int      kb_on;
+extern void     kbench_config (void);
+extern void     kbench_run (void);
+#endif
+
 extern void     game (void);
 extern void     setcustompalette (int, float);
 extern void     starwars (void);
@@ -93,14 +116,29 @@ initialize (void)
    * same Malloc(-1) probe that picks the sprite format answers this
    * one, before the mode is set rather than after.
    */
+#ifdef KOULES_BENCH
+  kbench_config ();
+  if (kresponsive)
+    STDL_UseResponsive (STDL_RESPONSIVE_COLOUR);
+#elif KOULES_RESPONSIVE
+  STDL_UseResponsive (STDL_RESPONSIVE_COLOUR);
+#endif
   heap = freeram ();
   vflags = (heap >= DOUBLEBUF_HEAP) ? STDL_DOUBLEBUF : 0;
-  backscreen = STDL_SetVideoMode (MAPWIDTH, MAPHEIGHT + 20, 4, vflags);
+  /* 8 bits: 256 colours where the model gives them, 16 on an ST */
+  backscreen = STDL_SetVideoMode (MAPWIDTH, MAPHEIGHT + 20, 8, vflags);
   if (backscreen == NULL)
     {
       fprintf (stderr, "SetVideoMode: %s\n", STDL_GetError ());
       return -1;
     }
+  k256 = backscreen->format->BitsPerPixel == 8;
+  rocketcolor[0] = C_YELLOW;
+  rocketcolor[1] = C_BLUE;
+  rocketcolor[2] = C_RED;
+  rocketcolor[3] = C_GREEN;
+  rocketcolor[4] = C_GREY;
+  fprintf (stderr, "koules: %d colours\n", k256 ? 256 : 16);
   fprintf (stderr, "koules: heap %ld bytes, %s\n", heap,
 	   (backscreen->flags & STDL_DOUBLEBUF)
 	   ? "double buffered" : "single buffered (low memory)");
@@ -177,6 +215,14 @@ main (int argc, char *argv[])
 #endif
 #endif
 
+#ifdef KOULES_BENCH
+  if (kb_on)
+    {
+      kbench_run ();
+      uninitialize ();
+      return 0;
+    }
+#endif
   gamemode = MENU;
 #ifdef KOULES_STARTLEVEL
   /* diagnostic builds only: jump straight to a busy level so the

@@ -273,6 +273,12 @@ slot_for (int line, const char *txt, int h, int col)
 	    render_line (cs, txt, h, col);
 	    return cs;
 	  }
+	if (cs->col != col && cs->s && k256)
+	  {
+	    /* a 256-colour shade is past the remap's sixteen */
+	    render_line (cs, txt, h, col);
+	    return cs;
+	  }
 	if (cs->col != col && cs->s)
 	  {
 	    /* same size, new fade shade: remap in place, which
@@ -303,9 +309,9 @@ static int
 fade_shade (int tc)
 {
   if (tc < 6)
-    return C_BLUE + 2;          /* barely off the sky        */
+    return KSTEP (C_BLUE, 2);   /* barely off the sky        */
   if (tc < 12)
-    return C_GREY + 1;
+    return KSTEP (C_GREY, 1);
   if (tc < 18)
     return C_GREY;
   return C_WHITE;
@@ -461,7 +467,7 @@ starcreator_c (void)
       addpoint (x * DIV * 256, y * DIV * 256,
 		(MAPWIDTH / 2 - x) * DIV * 256 / 100,
 		(MAPHEIGHT / 2 - y) * DIV * 256 / 100,
-		c >= 20 ? C_WHITE : C_GREY + (c >= 10), 100);
+		c >= 20 ? C_WHITE : KSTEP (C_GREY, c >= 10), 100);
     }
 }
 
@@ -607,7 +613,7 @@ CrawlText (char *lines[], int n, const CrawlScript * sc)
       stars[j].x = (int16_t) KRAND_N (MAPWIDTH);
       stars[j].y = (int16_t) KRAND_N (MAPHEIGHT + 20);
     }
-  STDL_Points (background, stars, NSTARS / 2, C_GREY + 1);
+  STDL_Points (background, stars, NSTARS / 2, KSTEP (C_GREY, 1));
   STDL_Points (background, stars + NSTARS / 2, NSTARS / 2, C_GREY);
   DirtyAll ();
 

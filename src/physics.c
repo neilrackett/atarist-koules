@@ -546,7 +546,7 @@ accel (CONST int i, CONST fix_t howmuch)
 		FIX2I (fixmul (object[i].fy -
 			       fixmul (k * 10, fixcos (rot + p)),
 			       FIXI (KRAND_N (512)))),
-		C_YELLOW + KRAND_N (3), 10);
+		C_YELLOW + KRAND_N (RAMPLEN (C_YELLOW)), 10);
     }
 }
 

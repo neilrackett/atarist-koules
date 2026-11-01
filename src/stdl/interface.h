@@ -40,11 +40,13 @@ typedef KBitmap *RawBitmapType;
 typedef STDL_Surface *VScreenType;
 
 /*
- * The ST has sixteen colours, so Palette is sixteen entries wide.
+ * The ST has sixteen colours, a TT or a Falcon 256 (k256): Palette
+ * holds the most, and NCOLOURS is how many the screen has.
  * Components stay on upstream's 0..63 VGA scale: cmap.c's fade loops
  * do their own arithmetic on them and are used unchanged.
  */
-#define COLORS 16
+#define COLORS 256
+#define NCOLOURS (k256 ? 256 : 16)
 typedef struct
 {
   struct

@@ -159,6 +159,41 @@ $(DIST)/SFXTEST.TOS: $(GAMESRC) src/koules.h src/sound.h $(GAMELIBS) | $(DIST)
 	$(CC) $(GAMEFLAGS) -DKOULES_SOUNDTEST $(LDFLAGS) -o $@ $(GAMESRC) $(GAMELIBS)
 	$(STRIP) $@
 
+# 256 colours on a TT or a Falcon (STDL's stdl_responsive.h):
+# KOULRESP.TOS is the game asking for them; KOULDB.TOS carries the
+# bench as well (stdl/bench.c, KOULBNCH.CFG).
+$(DIST)/KOULDB.TOS: $(GAMESRC) src/stdl/bench.c src/koules.h $(GAMELIBS) | $(DIST)
+	$(CC) $(GAMEFLAGS) -DKOULES_BENCH $(LDFLAGS) -o $@ $(GAMESRC) src/stdl/bench.c $(GAMELIBS)
+	$(STRIP) $@
+
+$(DIST)/KOULRESP.TOS: $(GAMESRC) src/koules.h $(GAMELIBS) | $(DIST)
+	$(CC) $(GAMEFLAGS) -DKOULES_RESPONSIVE=1 $(LDFLAGS) -o $@ $(GAMESRC) $(GAMELIBS)
+	$(STRIP) $@
+
+# libcmini in place of mintlib: the same game about 100K smaller, which
+# pays for the 256 colours' code (STDL's stdl_responsive.h, about 21K)
+# several times over, so one program can serve every machine. STDL is
+# built against libcmini's headers as well (its libstdl-cmini.a).
+# KOULCM.TOS is that program; KOULDBC.TOS the bench (stdl/bench.c) on
+# libcmini, to compare with KOULDB.TOS.
+CMINI      ?= /freemint/libcmini
+STDL_CMINI  = $(STDL)/libstdl-cmini.a
+CMFLAGS     = $(GAMEFLAGS) -DKOULES_CMINI -I$(CMINI)/include
+CMLINK      = -nostdlib -L$(CMINI)/lib -Wl,--traditional-format \
+              $(CMINI)/lib/crt0.o
+CMLIBS      = $(STDL_CMINI) -lcmini -lgcc
+
+$(STDL_CMINI): $(STDL_SRCS)
+	$(MAKE) -C $(STDL) libstdl-cmini.a
+
+$(DIST)/KOULCM.TOS: $(GAMESRC) src/koules.h $(STDL_CMINI) | $(DIST)
+	$(CC) $(CMFLAGS) -DKOULES_RESPONSIVE=1 $(CMLINK) -o $@ $(GAMESRC) $(CMLIBS)
+	$(STRIP) $@
+
+$(DIST)/KOULDBC.TOS: $(GAMESRC) src/stdl/bench.c src/koules.h $(STDL_CMINI) | $(DIST)
+	$(CC) $(CMFLAGS) -DKOULES_BENCH $(CMLINK) -o $@ $(GAMESRC) src/stdl/bench.c $(CMLIBS)
+	$(STRIP) $@
+
 # Same binary with a once-a-second frame report on the console: the
 # ST prints onto the playfield, so this is a diagnostic build rather
 # than a switch in the shipped one.
