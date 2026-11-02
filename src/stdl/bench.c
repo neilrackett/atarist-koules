@@ -61,7 +61,8 @@ kbench_config (void)
 	      &kb_level, &kb_flags, &kb_dump) >= 1)
     {
       kb_on = 1;
-      kresponsive = m == '8' ? 1 : m == 't' ? 2 : 0;
+      kresponsive = m == '8' ? STDL_RESPONSIVE_COLOUR
+	: m == 't' ? STDL_RESPONSIVE_HEIGHT : 0;
     }
   fclose (f);
   if (kb_frames < 1)

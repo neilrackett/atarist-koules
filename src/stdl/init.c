@@ -35,15 +35,15 @@ long            _stksize = 32768;
 #endif
 
 /*
- * 256 colours on a TT or a Falcon (STDL's stdl_responsive.h): whether
- * this build asks for them (KOULES_RESPONSIVE; the bench build,
- * KOULDB.TOS, takes it from KOULBNCH.CFG), and whether the screen it
- * got has them.
+ * 256 colours on a TT or a Falcon (STDL's stdl_responsive.h): what this
+ * build asks for, an STDL_RESPONSIVE_ option or 0 (KOULES_RESPONSIVE;
+ * the bench build, KOULDB.TOS, takes it from KOULBNCH.CFG), and whether
+ * the screen it got has them.
  */
 #ifndef KOULES_RESPONSIVE
 #define KOULES_RESPONSIVE 0
 #endif
-int             kresponsive = KOULES_RESPONSIVE;
+int             kresponsive = KOULES_RESPONSIVE ? STDL_RESPONSIVE_COLOUR : 0;
 int             k256;
 #ifdef KOULES_BENCH
 extern int      kb_on;
@@ -119,13 +119,15 @@ initialize (void)
    */
 #ifdef KOULES_BENCH
   kbench_config ();
-  if (kresponsive == 2)
+  /* each option by name: a variable would link them all, the ST's
+     border code among them */
+  if (kresponsive == STDL_RESPONSIVE_HEIGHT)
     {
       /* the tall screen in 16 colours, for timing a TT's present */
       STDL_UseResponsive (STDL_RESPONSIVE_HEIGHT);
       vh = 240;
     }
-  else if (kresponsive)
+  else if (kresponsive == STDL_RESPONSIVE_COLOUR)
     STDL_UseResponsive (STDL_RESPONSIVE_COLOUR);
 #elif KOULES_RESPONSIVE
   STDL_UseResponsive (STDL_RESPONSIVE_COLOUR);
