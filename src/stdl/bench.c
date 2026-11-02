@@ -27,15 +27,13 @@
 #include <string.h>
 
 #include "../koules.h"
+#include "../physics.h"
+
+/* STDL_RespClock's rate */
+#define KB_HZ 38400ULL
 
 extern int      kresponsive;
 extern void     start ();
-extern void     update_values (void);
-extern void     update_game ();
-extern void     update_forces (void);
-extern void     colisions (void);
-extern void     move_objects (void);
-extern void     check_limit (void);
 extern void     kbench_draw (int);
 extern uint32_t ph_restore, ph_points, ph_obj, ph_over, ph_stat, ph_step,
                 ph_flip;
@@ -76,7 +74,7 @@ cmpu (const void *a, const void *b)
 static unsigned long
 cms (uint64_t units, unsigned long n)
 {
-  return (unsigned long) (units * 100000ULL / 38400ULL / (n ? n : 1));
+  return (unsigned long) (units * 100000ULL / KB_HZ / (n ? n : 1));
 }
 
 #define MS(v) (v) / 100, (v) % 100
@@ -144,7 +142,7 @@ kbench_run (void)
 
 	      if (o != NULL)
 		{
-		  fwrite (st->page, 1, st->page_bytes, o);
+		  fwrite (p, sizeof (uint32_t), n, o);
 		  fclose (o);
 		}
 	    }

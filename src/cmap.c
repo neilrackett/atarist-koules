@@ -46,6 +46,17 @@ col (int p, CONST float p1)
   return (p);
 }
 
+/* col (v + p, p1) for a level v of 0..64, each worked out once a
+ * step: it is a soft-float multiply, and a step's 768 levels at 256
+ * colours are at most 65 different ones (48 and 11 at sixteen) */
+static INLINE unsigned char
+faded (signed char *lut, int v, CONST int p, CONST float p1)
+{
+  if (lut[v] < 0)
+    lut[v] = (signed char) col (v + p, p1);
+  return (unsigned char) lut[v];
+}
+
 /*
  * The sixteen entries, on upstream's 0..63 scale.  Ramps run bright
  * (specular) -> mid -> dark, matching the direction of upstream's
@@ -117,6 +128,7 @@ void
 setcustompalette (CONST int p, CONST float p1)
 {
   Palette         pal;
+  signed char     lut[65];
   int             i;
 
   if (k256)
@@ -128,11 +140,12 @@ setcustompalette (CONST int p, CONST float p1)
 	pal.color[i].green = basepal[i][1];
 	pal.color[i].blue = basepal[i][2];
       }
+  memset (lut, -1, sizeof (lut));
   for (i = 0; i < NCOLOURS; i++)
     {
-      pal.color[i].red = col (pal.color[i].red + p, p1);
-      pal.color[i].green = col (pal.color[i].green + p, p1);
-      pal.color[i].blue = col (pal.color[i].blue + p, p1);
+      pal.color[i].red = faded (lut, pal.color[i].red, p, p1);
+      pal.color[i].green = faded (lut, pal.color[i].green, p, p1);
+      pal.color[i].blue = faded (lut, pal.color[i].blue, p, p1);
     }
   WaitRetrace ();
   SetPalette (&pal);

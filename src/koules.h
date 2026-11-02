@@ -102,8 +102,14 @@ extern int      k256;
 
 #define RAMPLEN(base)   (k256 ? ((base) == C_WHITE ? 1 : 32) \
                          : (base) == C_GREY ? 2 : ((base) == C_WHITE ? 1 : 3))
-/* s of the sixteen colours' shade steps along a ramp at either depth */
-#define KSTEP(base, s)  ((base) + (k256 ? (s) * 14 : (s)))
+/* shade x of a ramp, on upstream's 0..31 scale: itself at 256
+ * colours, of the sixteen's three bright from 0, mid from 2 and dark
+ * from 20 */
+#define RAMP(base, x)   (k256 ? (base) + (x) \
+                         : (base) + ((x) >= 20 ? 2 : ((x) >= 2 ? 1 : 0)))
+/* s (0-2) of the sixteen colours' shade steps along a ramp at either
+ * depth */
+#define KSTEP(base, s)  RAMP (base, (s) * 14)
 #define SHADE(base, s)  ((base) + ((s) < RAMPLEN (base) \
                                    ? (s) : RAMPLEN (base) - 1))
 
@@ -115,10 +121,8 @@ extern int      k256;
  */
 #define back(x)   (k256 ? ((x) ? 32 + (x) : C_BG) \
                    : (x) >= 16 ? C_BLUE + 1 : C_BG)
-#define ball(x)   (k256 ? 64 + (x) \
-                   : C_RED + ((x) >= 20 ? 2 : ((x) >= 2 ? 1 : 0)))
-#define rocket(x) (k256 ? 96 + (x) \
-                   : C_YELLOW + ((x) >= 20 ? 2 : ((x) >= 2 ? 1 : 0)))
+#define ball(x)   RAMP (C_RED, x)
+#define rocket(x) RAMP (C_YELLOW, x)
 
 /*
  * Pre-shifted sprites make unaligned blits as cheap as aligned ones

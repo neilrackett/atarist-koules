@@ -546,7 +546,9 @@ accel (CONST int i, CONST fix_t howmuch)
 		FIX2I (fixmul (object[i].fy -
 			       fixmul (k * 10, fixcos (rot + p)),
 			       FIXI (KRAND_N (512)))),
-		C_YELLOW + KRAND_N (RAMPLEN (C_YELLOW)), 10);
+		/* the ramp's length as constants: KRAND_N of a variable
+		 * is a __mulsi3 */
+		k256 ? C_YELLOW + KRAND_N (32) : C_YELLOW + KRAND_N (3), 10);
     }
 }
 

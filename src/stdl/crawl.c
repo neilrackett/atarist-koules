@@ -273,18 +273,19 @@ slot_for (int line, const char *txt, int h, int col)
 	    render_line (cs, txt, h, col);
 	    return cs;
 	  }
-	if (cs->col != col && cs->s && k256)
-	  {
-	    /* a 256-colour shade is past the remap's sixteen */
-	    render_line (cs, txt, h, col);
-	    return cs;
-	  }
 	if (cs->col != col && cs->s)
 	  {
 	    /* same size, new fade shade: remap in place, which
 	       keeps the mask and skips the scaler entirely */
 	    uint8_t         map[16];
 	    int             c;
+
+	    if (k256)
+	      {
+		/* a 256-colour shade is past the remap's sixteen */
+		render_line (cs, txt, h, col);
+		return cs;
+	      }
 	    for (c = 0; c < 16; c++)
 	      map[c] = (uint8_t) c;
 	    map[cs->col] = (uint8_t) col;
