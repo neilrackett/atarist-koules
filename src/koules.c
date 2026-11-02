@@ -161,8 +161,8 @@ uint32_t        ph_restore, ph_points, ph_obj, ph_over, ph_stat, ph_step;
 uint32_t        ph_flip;        /* page flip: the wait for the raster */
 uint32_t        ph_pump;        /* event pump, incl. the sound refill */
 #ifdef KOULES_BENCH
-/* the bench's finer clock (stdl_responsive.h): 38,400 a second */
-#define PHCLOCK() STDL_RespClock ()
+/* the bench's finer clock (stdl_time.h): 38,400 a second */
+#define PHCLOCK() STDL_GetHz38400 ()
 #else
 #define PHCLOCK() STDL_GetTicks ()
 #endif

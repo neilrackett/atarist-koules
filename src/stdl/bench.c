@@ -10,15 +10,17 @@
  ************************NR*********************************/
 
 /*
- * Built into KOULDB.TOS only. With KOULBNCH.CFG beside the program -
- * one line, "colours frames seed level flags [dump]": colours 8 (256
- * on a TT or a Falcon) or 4 (sixteen), flags 1 no VBL wait, 4 a hash
- * of every page shown, written per frame to KBHASH.BIN, with the page
- * `dump` frames in written to KBPAGE.BIN - it plays a level from a
- * fixed seed with no input, every frame drawn, and prints the time
- * each part took, in STDL_RespClock's units (38,400 a second) turned
- * into milliseconds a frame. The same seed gives the same game, so two
- * builds' hashes must agree.
+ * Built into the benches (KOULDB.TOS, KOULDBC.TOS) only. With
+ * KOULBNCH.CFG beside the program - one line, "colours frames seed
+ * level flags [dump]": colours 8 (256 on a TT or a Falcon) or 4
+ * (sixteen), flags 4 a hash of every page shown, written per frame to
+ * KBHASH.BIN, with the page `dump` frames in written to KBPAGE.BIN -
+ * it plays a level from a fixed seed with no input, every frame drawn,
+ * and prints the time each part took, in STDL_GetHz38400's counts
+ * turned into milliseconds a frame. A frame's time leaves out the
+ * flip's wait for the VBL, so it is what the frame cost, not when the
+ * display took it. The same seed gives the same game, so two builds'
+ * hashes must agree.
  */
 
 #include <interface.h>
@@ -28,8 +30,9 @@
 
 #include "../koules.h"
 #include "../physics.h"
+#include <stdl/stdl_bench.h>
 
-/* STDL_RespClock's rate */
+/* STDL_GetHz38400's rate */
 #define KB_HZ 38400ULL
 
 extern int      kresponsive;
@@ -41,7 +44,7 @@ extern uint32_t ph_restore, ph_points, ph_obj, ph_over, ph_stat, ph_step,
 int             kb_on;
 static int      kb_frames = 300, kb_level = 25;
 static unsigned long kb_seed = 1;
-static unsigned kb_flags = 1;
+static unsigned kb_flags;
 static int      kb_dump = -1;
 
 void
@@ -82,11 +85,11 @@ cms (uint64_t units, unsigned long n)
 void
 kbench_run (void)
 {
-  STDL_RespStats *st = STDL_RespGetStats ();
+  const STDL_PresentStats *st = STDL_GetPresentStats ();
   uint32_t       *ft = malloc ((size_t) kb_frames * sizeof (uint32_t));
   uint32_t       *fh = malloc ((size_t) kb_frames * sizeof (uint32_t));
-  uint64_t        phys = 0, draw = 0;
-  uint32_t        hash = 2166136261u, present0, cells0, flips0;
+  uint64_t        phys = 0, draw = 0, wait = 0;
+  uint32_t        hash = 2166136261u, present0, groups0, flips0;
   unsigned long   p50, p95, mx;
   int             f;
 
@@ -97,16 +100,16 @@ kbench_run (void)
   lastlevel = maxlevel = kb_level;
   start ();
   tbreak = 0;
-  STDL_RespBench (kb_flags & STDL_RESPB_NOWAIT);
-  present0 = st->present;
-  cells0 = st->cells;
+  present0 = st->present_time;
+  groups0 = st->groups;
   flips0 = st->flips;
   ph_restore = ph_points = ph_obj = ph_over = ph_stat = ph_step = 0;
   ph_flip = 0;
   fprintf (stderr, "KB:start objects=%d\n", nobjects);
   for (f = 0; f < kb_frames; f++)
     {
-      uint32_t        t0 = STDL_RespClock (), t1, t2;
+      uint32_t        t0 = STDL_GetHz38400 (), t1, t2, w;
+      uint32_t        flip0 = ph_flip, pres0 = st->present_time;
 
       update_values ();
       update_game ();
@@ -114,20 +117,23 @@ kbench_run (void)
       colisions ();
       move_objects ();
       check_limit ();
-      t1 = STDL_RespClock ();
+      t1 = STDL_GetHz38400 ();
       kbench_draw (1);
-      t2 = STDL_RespClock ();
+      t2 = STDL_GetHz38400 ();
+      /* the flip less its present is the wait for the VBL */
+      w = (ph_flip - flip0) - (st->present_time - pres0);
       phys += t1 - t0;
-      draw += t2 - t1;
-      ft[f] = t2 - t1;
+      draw += t2 - t1 - w;
+      wait += w;
+      ft[f] = t2 - t1 - w;
       tbreak = 0;
       if (kb_flags & 4)
 	{
 	  /* the page shown, or on an ST the page now drawn into: the
 	     same sequence either way, so two builds agree */
-	  const uint32_t *p = st->page != NULL
-	    ? (const uint32_t *) st->page : (const uint32_t *) backscreen->pixels;
-	  const uint32_t  n = st->page != NULL ? st->page_bytes / 4
+	  const uint32_t *p = st->shown != NULL
+	    ? (const uint32_t *) st->shown : (const uint32_t *) backscreen->pixels;
+	  const uint32_t  n = st->shown != NULL ? st->shown_bytes / 4
 	    : (uint32_t) backscreen->stride * backscreen->h / 4;
 	  uint32_t        i;
 
@@ -166,11 +172,11 @@ kbench_run (void)
   fprintf (stderr, "KB: depth=%d frames=%d seed=%lu level=%d flags=%u\n",
 	   k256 ? 8 : 4, kb_frames, kb_seed, kb_level, kb_flags);
   fprintf (stderr, "KB: ms/frame phys=%lu.%02lu draw=%lu.%02lu "
-	   "(present %lu.%02lu) draw p50=%lu.%02lu p95=%lu.%02lu "
-	   "max=%lu.%02lu\n",
+	   "(present %lu.%02lu) wait=%lu.%02lu draw p50=%lu.%02lu "
+	   "p95=%lu.%02lu max=%lu.%02lu\n",
 	   MS (cms (phys, kb_frames)), MS (cms (draw, kb_frames)),
-	   MS (cms (st->present - present0, kb_frames)), MS (p50), MS (p95),
-	   MS (mx));
+	   MS (cms (st->present_time - present0, kb_frames)),
+	   MS (cms (wait, kb_frames)), MS (p50), MS (p95), MS (mx));
   fprintf (stderr, "KB: phases restore=%lu.%02lu step=%lu.%02lu "
 	   "points=%lu.%02lu objects=%lu.%02lu over=%lu.%02lu "
 	   "status=%lu.%02lu flip=%lu.%02lu\n",
@@ -178,8 +184,8 @@ kbench_run (void)
 	   MS (cms (ph_points, kb_frames)), MS (cms (ph_obj, kb_frames)),
 	   MS (cms (ph_over, kb_frames)), MS (cms (ph_stat, kb_frames)),
 	   MS (cms (ph_flip, kb_frames)));
-  fprintf (stderr, "KB: cells/frame=%lu objects=%d hash=%08lx\n",
-	   (unsigned long) ((st->cells - cells0)
+  fprintf (stderr, "KB: groups/frame=%lu objects=%d hash=%08lx\n",
+	   (unsigned long) ((st->groups - groups0)
 			    / (st->flips - flips0 ? st->flips - flips0 : 1)),
 	   nobjects, (unsigned long) hash);
   fprintf (stderr, "KB:done\n");
