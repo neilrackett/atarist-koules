@@ -89,6 +89,7 @@ initialize (void)
 {
   long            heap;
   uint32_t        vflags;
+  int             vh = MAPHEIGHT + 20;
 
   if (STDL_Init (STDL_INIT_VIDEO | STDL_INIT_JOYSTICK) != 0)
     {
@@ -118,7 +119,13 @@ initialize (void)
    */
 #ifdef KOULES_BENCH
   kbench_config ();
-  if (kresponsive)
+  if (kresponsive == 2)
+    {
+      /* the tall screen in 16 colours, for timing a TT's present */
+      STDL_UseResponsive (STDL_RESPONSIVE_HEIGHT);
+      vh = 240;
+    }
+  else if (kresponsive)
     STDL_UseResponsive (STDL_RESPONSIVE_COLOUR);
 #elif KOULES_RESPONSIVE
   STDL_UseResponsive (STDL_RESPONSIVE_COLOUR);
@@ -126,7 +133,7 @@ initialize (void)
   heap = freeram ();
   vflags = (heap >= DOUBLEBUF_HEAP) ? STDL_DOUBLEBUF : 0;
   /* 8 bits: 256 colours where the model gives them, 16 on an ST */
-  backscreen = STDL_SetVideoMode (MAPWIDTH, MAPHEIGHT + 20, 8, vflags);
+  backscreen = STDL_SetVideoMode (MAPWIDTH, vh, 8, vflags);
   if (backscreen == NULL)
     {
       fprintf (stderr, "SetVideoMode: %s\n", STDL_GetError ());

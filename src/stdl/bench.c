@@ -12,8 +12,10 @@
 /*
  * Built into the benches (KOULDB.TOS, KOULDBC.TOS) only. With
  * KOULBNCH.CFG beside the program - one line, "colours frames seed
- * level flags [dump]": colours 8 (256 on a TT or a Falcon) or 4
- * (sixteen), flags 4 a hash of every page shown, written per frame to
+ * level flags [dump]": colours 8 (256 on a TT or a Falcon), 4
+ * (sixteen) or t (sixteen on the display's own height, 240 rows on a
+ * TT or a Falcon, the play still in the top 200), flags 4 a hash of
+ * every page shown, written per frame to
  * KBHASH.BIN, with the page `dump` frames in written to KBPAGE.BIN -
  * it plays a level from a fixed seed with no input, every frame drawn,
  * and prints the time each part took, in STDL_GetHz38400's counts
@@ -59,7 +61,7 @@ kbench_config (void)
 	      &kb_level, &kb_flags, &kb_dump) >= 1)
     {
       kb_on = 1;
-      kresponsive = m == '8';
+      kresponsive = m == '8' ? 1 : m == 't' ? 2 : 0;
     }
   fclose (f);
   if (kb_frames < 1)
