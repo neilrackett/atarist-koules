@@ -21,12 +21,14 @@ and the compositor (full repaint to dirty rectangles).
 
 | File          | Lines | Contents                                                                       |
 | ------------- | ----- | ------------------------------------------------------------------------------ |
-| `draw.c`      | 737   | sprites, primitives, page flipping, dirty tracking, particles, status bar      |
-| `sound.c`     | 445   | the seven effects, on STE DMA where affordable and on the YM elsewhere         |
-| `init.c`      | 201   | start-up, shutdown, the page, pre-shift and sample RAM decisions               |
-| `intro.c`     | 197   | level briefings as paged text                                                  |
-| `interface.h` | 180   | the backend seam                                                               |
+| `draw.c`      | 722   | sprites, primitives, page flipping, dirty tracking, particles, status bar      |
+| `crawl.c`     | 696   | the perspective scroller, from scaled and cached system-font lines            |
+| `sound.c`     | 445   | the seven effects, on DMA sound where affordable and on the YM elsewhere       |
+| `init.c`      | 272   | start-up, shutdown, the screen, the page, pre-shift and sample RAM decisions   |
+| `interface.h` | 199   | the backend seam                                                               |
+| `bench.c`     | 196   | the bench in `KOULDB.TOS`: a level from a fixed seed, timed and hashed         |
 | `input.c`     | 166   | keyboard and joystick                                                          |
+| `intro.c`     | 142   | routing the level briefings to the scroller                                    |
 | `font8x8.h`   | 2592  | SDL_gfx's 8x8 font, carried verbatim (LGPL)                                    |
 
 ## Building
@@ -41,7 +43,7 @@ git clone --recurse-submodules https://github.com/neilrackett/atarist-koules.git
 In a clone that already exists, `git submodule update --init` fetches it.
 The game then cross-compiles with `m68k-atari-mint-gcc` via
 [atarist-toolkit-docker](https://github.com/sidecartridge/atarist-toolkit-docker),
-in one command - `libstdl.a` is built from the submodule as part of it:
+in one command - STDL is built from the submodule as part of it:
 
 ```
 stcmd make
@@ -52,7 +54,9 @@ The root `Makefile` picks between the per-platform makefiles - `make atari`
 both - so `stcmd make -f Makefile.atari` is equivalent if you prefer being
 explicit.
 
-This produces `dist/KOULES.TOS` plus the converted sound assets. `dist/` doubles
+This produces `dist/KOULES.TOS` plus the converted sound assets. The game links
+libcmini, which the toolkit container carries, in place of mintlib, and STDL is
+built against libcmini's headers for it (`libstdl-cmini.a`). `dist/` doubles
 as a Hatari GEMDOS drive:
 
 ```
@@ -61,6 +65,12 @@ hatari --machine st dist/KOULES.TOS
 
 `dist/KDEBUG.TOS` is the same game with a per-phase console report, and
 `dist/SFXTEST.TOS` plays the seven effects in order for audio checking.
+`make atari TARGET=bench` builds the benches, among them `dist/KOULDB.TOS`: the
+game, which with a `KOULBNCH.CFG` beside it (one line, "colours frames seed
+level flags") plays a level from a fixed seed with no input, every frame drawn,
+prints what each part of a frame took and, with flags 4, writes a hash of every
+page shown to `KBHASH.BIN`. The same seed gives the same game, so two builds'
+hashes must agree.
 
 ## Status
 
@@ -165,10 +175,6 @@ monophonic and arbitrated by priority.
 - **Network play** - no sockets on single-tasking TOS.
 - **Five players on one keyboard** - needs around 24 distinct hues; the 16
   colour budget supports one or two players.
-- **The starwars scroller** - `font.c` renders its glyphs as vector lines and
-  arcs with trigonometry per frame, which is a per-pixel renderer by another
-  name. The same briefings appear as paged text instead, and every entry point
-  is preserved so `gameplan.c` is untouched.
 - **Objects animating behind menus** - the menu is a cached overlay, which is
   what keeps a settled one free of any per-frame drawing at all.
 

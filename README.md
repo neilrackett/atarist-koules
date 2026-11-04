@@ -18,8 +18,8 @@ planar with no chunky backbuffer and no c2p pass anywhere.
 The game logic, level generator and physics model are upstream's. What the
 port replaces is the arithmetic - the simulation was float, which on an FPU-less
 68000 ran 18-45x over its frame budget, and is now 16.16 fixed point - along
-with the palette (256 colours to 16) and the compositor (a full repaint every
-frame to dirty rectangles).
+with the palette (256 colours to 16 on an ST; a TT or a Falcon keeps all 256)
+and the compositor (a full repaint every frame to dirty rectangles).
 
 ## Controls
 
@@ -40,12 +40,15 @@ from CONTROL on the main menu and are remembered between sessions.
 
 ## System requirements
 
-- Atari ST, STE or Mega STE, 512KB minimum
+- Atari ST, STE, Mega STE, TT or Falcon, 512KB minimum, on a colour monitor
 - TOS or EmuTOS
+- One program for every machine: on a TT or a Falcon it shows upstream's own
+  256 colours, and on an ST, STE or Mega STE the port's sixteen
 - 1MB gets pre-shifted sprites, which make unaligned blits free; on 512KB the
   game detects the shortfall and falls back to plain sprites automatically
-- Sound effects play through the STE's DMA hardware where there is both an STE
-  and the RAM to hold the samples, and on the YM2149 everywhere else
+- Sound effects play through the DMA sound of an STE, a Mega STE, a TT or a
+  Falcon where there is the RAM to hold the samples, and on the YM2149
+  everywhere else
 
 ## Building
 
@@ -65,8 +68,11 @@ cross-compile with `m68k-atari-mint-gcc` via
 stcmd make
 ```
 
-That produces `dist/KOULES.TOS` and the converted sound assets, and `dist/`
-doubles as a Hatari GEMDOS drive:
+That produces `dist/KOULES.TOS` and the converted sound assets. The game links
+[libcmini](https://github.com/freemint/libcmini), which the toolkit container
+carries, rather than mintlib: it is about 100K smaller, which is what lets one
+program carry a TT's and a Falcon's 256 colours and still leave a 512KB ST
+room to play. `dist/` doubles as a Hatari GEMDOS drive:
 
 ```
 hatari --machine st dist/KOULES.TOS
@@ -110,8 +116,6 @@ build.
   single screen the 16-colour budget still caps the number of players you can
   tell apart
 - Five players on one keyboard, which needs around 24 distinguishable hues
-- The Star Wars intro scroller, whose vector font renders glyphs as lines and
-  arcs with trigonometry per frame. The briefings appear as paged text instead
 
 ## Original Koules
 

@@ -5,12 +5,15 @@
 # stcmd mounts the current directory as /tmp inside the toolkit
 # container and runs there, so everything the build touches has to
 # live inside this repository. STDL does: lib/stdl is a submodule,
-# and libstdl.a is built from it automatically when it is missing.
+# and libstdl-cmini.a is built from it automatically when it is
+# missing.
 #
 #   git clone --recurse-submodules <url>     # fresh clone
 #   git submodule update --init              # existing clone
 #
-#   KOULES.TOS   the game
+#   KOULES.TOS   the game, one program for every machine: 256 colours
+#                on a TT or a Falcon, sixteen on an ST, STE or Mega
+#                STE
 #   KOULSFP4.TOS the game with float physics on a memory-mapped
 #                68881/68882 (SFP-004 / Mega STE + GAL) via
 #                atarist-sfp004; soft float without the FPU
@@ -27,6 +30,9 @@
 #   PHASEF.TOS   per-phase timing, float
 #   PHASESFP.TOS per-phase timing, float with sqrt on the SFP-004
 #                (run it on the real FPU; Hatari has no CIR)
+#   KOULDB.TOS   the game with its bench (stdl/bench.c): a level from
+#                a fixed seed, each part's time and a hash of every
+#                page shown, set by KOULBNCH.CFG beside it
 
 CC       = m68k-atari-mint-gcc
 STRIP    = m68k-atari-mint-strip
@@ -39,7 +45,8 @@ PYTHON  ?= python3
 # fallback, so the library and the game can still be worked on
 # together. Override with STDL=<path>.
 STDL    ?= $(firstword $(wildcard lib/stdl) ../atarist-stdl)
-STDL_LIB = $(STDL)/libstdl.a
+# STDL built against libcmini's headers, as the game is (GAMEFLAGS)
+STDL_LIB = $(STDL)/libstdl-cmini.a
 
 # Same arrangement for the SFP-004 FPU library: the submodule wins,
 # a sibling checkout is the fallback.  Override with SFP004=<path>.
@@ -63,10 +70,21 @@ CFLAGS   = -O2 -m68000 -fomit-frame-pointer -std=gnu99 -Wall -Wextra \
 # the default stack is too small for that path.
 LDFLAGS  = -Wl,--traditional-format,--stack=32768
 
+# The game links libcmini in place of mintlib: the same game about
+# 100K smaller, which pays for the 256 colours' code (STDL's
+# stdl_responsive.h, about 21K) several times over, so one program
+# serves every machine. libcmini takes the stack's size from _stksize
+# (stdl/init.c), not the link's --stack.
+CMINI    ?= /freemint/libcmini
 GAMEFLAGS = -O2 -m68000 -fomit-frame-pointer -std=gnu99 -Wall -Wextra \
             -Wno-unused-parameter -Isrc -Isrc/stdl -I$(STDL)/include \
-            -DNODIRECT -DSTDLSUPPORT -DSOUND
+            -DNODIRECT -DSTDLSUPPORT -DSOUND -DKOULES_CMINI \
+            -I$(CMINI)/include
+GAMELINK  = -nostdlib -L$(CMINI)/lib -Wl,--traditional-format \
+            $(CMINI)/lib/crt0.o
 GAMELIBS  = $(STDL_LIB)
+# after the game's own libraries, so what they call resolves here
+CLIBS     = -lcmini -lgcc
 # extra defines for the diagnostic build, e.g. DBGFLAGS='-DMAXACTIVE=16'
 DBGFLAGS ?=
 
@@ -92,7 +110,7 @@ all: $(DIST)/KOULES.TOS $(SFPTARGET) assets $(DIST)/KOULES.ST
 
 bench: $(DIST)/BENCHX.TOS $(DIST)/BENCHF.TOS \
        $(DIST)/PHASEX.TOS $(DIST)/PHASEF.TOS $(DIST)/PHASE30.TOS \
-       $(SFPBENCH)
+       $(SFPBENCH) $(DIST)/KOULDB.TOS
 
 # The sample set the DMA backend loads at start-up: tracked in
 # assets/, rebuilt from upstream's sounds/*.raw by tools/mksounds.sh.
@@ -133,72 +151,51 @@ STDL_SRCS = $(wildcard $(STDL)/src/*.c) $(wildcard $(STDL)/src/*.h) \
             $(wildcard $(STDL)/lib/xpad/src/*.h)
 
 $(STDL_LIB): $(STDL_SRCS)
-	$(MAKE) -C $(STDL) libstdl.a
+	$(MAKE) -C $(STDL) libstdl-cmini.a
 
 $(SFP004_LIB):
 	$(MAKE) -C $(SFP004) lib
 
+# 256 colours on a TT or a Falcon (STDL's stdl_responsive.h), and
+# the ST's sixteen everywhere else: KOULES.TOS and its diagnostic
+# builds ask for them; the bench takes the screen it measures from
+# KOULBNCH.CFG instead.
+RESPFLAGS = -DKOULES_RESPONSIVE=1
+
 $(DIST)/KOULES.TOS: $(GAMESRC) src/koules.h src/sound.h src/physics.h src/fixed.h src/gamedim.h \
                     src/stdl/interface.h src/stdl/font8x8.h src/text.h $(GAMELIBS) \
                     | $(DIST)
-	$(CC) $(GAMEFLAGS) $(LDFLAGS) -o $@ $(GAMESRC) $(GAMELIBS)
+	$(CC) $(GAMEFLAGS) $(RESPFLAGS) $(GAMELINK) -o $@ $(GAMESRC) $(GAMELIBS) $(CLIBS)
 	$(STRIP) $@
 
 # -lm: ksqrt's fallback and the rest of the float physics soft-float
-# through libm on machines without the coprocessor.
+# through libm on machines without the coprocessor. It is mintlib's
+# libm, which takes errno, frexp, ldexp and modf from the C library,
+# and libcmini has all four. Sixteen colours only: the coprocessor
+# this build is for sits in a Mega ST or a Mega STE.
 $(DIST)/KOULSFP4.TOS: $(SFPSRC) src/sim/physics_float.c src/koules.h src/sound.h \
                     src/physics.h src/gamedim.h \
                     src/stdl/interface.h src/stdl/font8x8.h src/text.h $(GAMELIBS) \
                     $(SFP004_LIB) | $(DIST)
-	$(CC) $(SFPFLAGS) $(LDFLAGS) -o $@ $(SFPSRC) $(GAMELIBS) $(SFP004_LIB) -lm
+	$(CC) $(SFPFLAGS) $(GAMELINK) -o $@ $(SFPSRC) $(GAMELIBS) $(SFP004_LIB) -lm $(CLIBS)
 	$(STRIP) $@
 
 # Plays the seven effects in id order with console markers and
 # exits, so a Hatari sound capture can be checked effect by effect.
 $(DIST)/SFXTEST.TOS: $(GAMESRC) src/koules.h src/sound.h $(GAMELIBS) | $(DIST)
-	$(CC) $(GAMEFLAGS) -DKOULES_SOUNDTEST $(LDFLAGS) -o $@ $(GAMESRC) $(GAMELIBS)
+	$(CC) $(GAMEFLAGS) $(RESPFLAGS) -DKOULES_SOUNDTEST $(GAMELINK) -o $@ $(GAMESRC) $(GAMELIBS) $(CLIBS)
 	$(STRIP) $@
 
-# 256 colours on a TT or a Falcon (STDL's stdl_responsive.h):
-# KOULRESP.TOS is the game asking for them; KOULDB.TOS carries the
-# bench as well (stdl/bench.c, KOULBNCH.CFG).
+# The game with its bench (stdl/bench.c, KOULBNCH.CFG).
 $(DIST)/KOULDB.TOS: $(GAMESRC) src/stdl/bench.c src/koules.h $(GAMELIBS) | $(DIST)
-	$(CC) $(GAMEFLAGS) -DKOULES_BENCH $(LDFLAGS) -o $@ $(GAMESRC) src/stdl/bench.c $(GAMELIBS)
-	$(STRIP) $@
-
-$(DIST)/KOULRESP.TOS: $(GAMESRC) src/koules.h $(GAMELIBS) | $(DIST)
-	$(CC) $(GAMEFLAGS) -DKOULES_RESPONSIVE=1 $(LDFLAGS) -o $@ $(GAMESRC) $(GAMELIBS)
-	$(STRIP) $@
-
-# libcmini in place of mintlib: the same game about 100K smaller, which
-# pays for the 256 colours' code (STDL's stdl_responsive.h, about 21K)
-# several times over, so one program can serve every machine. STDL is
-# built against libcmini's headers as well (its libstdl-cmini.a).
-# KOULCM.TOS is that program; KOULDBC.TOS the bench (stdl/bench.c) on
-# libcmini, to compare with KOULDB.TOS.
-CMINI      ?= /freemint/libcmini
-STDL_CMINI  = $(STDL)/libstdl-cmini.a
-CMFLAGS     = $(GAMEFLAGS) -DKOULES_CMINI -I$(CMINI)/include
-CMLINK      = -nostdlib -L$(CMINI)/lib -Wl,--traditional-format \
-              $(CMINI)/lib/crt0.o
-CMLIBS      = $(STDL_CMINI) -lcmini -lgcc
-
-$(STDL_CMINI): $(STDL_SRCS)
-	$(MAKE) -C $(STDL) libstdl-cmini.a
-
-$(DIST)/KOULCM.TOS: $(GAMESRC) src/koules.h $(STDL_CMINI) | $(DIST)
-	$(CC) $(CMFLAGS) -DKOULES_RESPONSIVE=1 $(CMLINK) -o $@ $(GAMESRC) $(CMLIBS)
-	$(STRIP) $@
-
-$(DIST)/KOULDBC.TOS: $(GAMESRC) src/stdl/bench.c src/koules.h $(STDL_CMINI) | $(DIST)
-	$(CC) $(CMFLAGS) -DKOULES_BENCH $(CMLINK) -o $@ $(GAMESRC) src/stdl/bench.c $(CMLIBS)
+	$(CC) $(GAMEFLAGS) -DKOULES_BENCH $(GAMELINK) -o $@ $(GAMESRC) src/stdl/bench.c $(GAMELIBS) $(CLIBS)
 	$(STRIP) $@
 
 # Same binary with a once-a-second frame report on the console: the
 # ST prints onto the playfield, so this is a diagnostic build rather
 # than a switch in the shipped one.
 $(DIST)/KDEBUG.TOS: $(GAMESRC) src/koules.h $(GAMELIBS) | $(DIST)
-	$(CC) $(GAMEFLAGS) -DKOULES_DEBUG $(DBGFLAGS) $(LDFLAGS) -o $@ $(GAMESRC) $(GAMELIBS)
+	$(CC) $(GAMEFLAGS) $(RESPFLAGS) -DKOULES_DEBUG $(DBGFLAGS) $(GAMELINK) -o $@ $(GAMESRC) $(GAMELIBS) $(CLIBS)
 	$(STRIP) $@
 
 $(DIST)/BENCHX.TOS: $(SIMSRC) $(FIXSRC) src/koules.h src/physics.h src/fixed.h src/gamedim.h | $(DIST)
@@ -255,7 +252,7 @@ floatcheck:
 	@rm -rf $(DIST)/objcheck $(DIST)/objcheckf
 
 clean:
-	rm -f $(DIST)/KOULES.TOS $(DIST)/KOULSFP4.TOS $(DIST)/KDEBUG.TOS $(DIST)/SFXTEST.TOS $(DIST)/BENCHX.TOS $(DIST)/BENCHF.TOS $(DIST)/PHASEX.TOS $(DIST)/PHASEF.TOS $(DIST)/PHASE30.TOS $(DIST)/PHASESFP.TOS
+	rm -f $(DIST)/KOULES.TOS $(DIST)/KOULSFP4.TOS $(DIST)/KOULDB.TOS $(DIST)/KDEBUG.TOS $(DIST)/SFXTEST.TOS $(DIST)/BENCHX.TOS $(DIST)/BENCHF.TOS $(DIST)/PHASEX.TOS $(DIST)/PHASEF.TOS $(DIST)/PHASE30.TOS $(DIST)/PHASESFP.TOS
 	rm -f $(DIST)/*.WAV $(DIST)/KOULES.ST
 
 .PHONY: all assets bench clean floatcheck
