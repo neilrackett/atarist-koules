@@ -26,6 +26,9 @@ int             gamemode = GAME;
 int             sound = 0;
 int             difficulty = 2;
 unsigned char   rocketcolor[5] = {96, 160, 64, 96, 128};
+/* the screen's depth (stdl/init.c), which koules.h's colour macros
+   read: the simulation's colours are the ST's sixteen */
+int             k256 = 0;
 
 /*
  * gameplan.c's create_letter()/allow_finder() decide whether a
