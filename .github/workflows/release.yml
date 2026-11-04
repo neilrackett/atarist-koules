@@ -1,0 +1,133 @@
+name: Release
+
+# Rolling release: build, tag the commit with the next v1.4-atari.N,
+# move the "latest" tag onto it, and replace the files on the "latest"
+# release. The release's title and body are left exactly as they are
+# -- `gh release upload` touches assets only -- and the asset names
+# never change, so a download link handed to someone keeps working.
+
+on:
+  # Anything landing on main is a release: a merge, or a direct push.
+  # Tag pushes do not match a branch filter, so the tags this workflow
+  # creates cannot trigger it again.
+  push:
+    branches:
+      - main
+    # A prose-only push cannot change the binary, so it cuts no
+    # release. GitHub still runs the job when a push touches anything
+    # else as well, and workflow_dispatch forces one by hand.
+    paths-ignore:
+      - '**.md'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+# Two merges in quick succession would otherwise race: both move the
+# latest tag and clobber the same assets, and the loser would decide
+# what the release ends up holding. Newest commit wins instead.
+concurrency:
+  group: release
+  cancel-in-progress: true
+
+env:
+  # stcmd runs docker with -it unless this is set, and a runner has no
+  # terminal.
+  STCMD_NO_TTY: 1
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    # The push trigger already filters to main; this is what stops a
+    # manual dispatch from some other branch tagging and releasing it.
+    if: github.ref == 'refs/heads/main'
+    steps:
+      - name: Check out the code
+        uses: actions/checkout@v5
+        with:
+          # STDL and atarist-sfp004 are submodules, and STDL carries
+          # Xpad as a submodule of its own, which Makefile.atari names
+          # in STDL_SRCS: recursing is required for the link.
+          submodules: recursive
+          # The next version number is counted from the tags already in
+          # the repository, and checkout fetches none of them without a
+          # full clone.
+          fetch-depth: 0
+
+      - name: Install the Atari ST toolkit
+        # Generates /usr/local/bin/stcmd, which runs the m68k build in a
+        # container; its image carries gcc 4.6.4 and libcmini, which
+        # the game links.
+        run: curl -sL https://github.com/sidecartridge/atarist-toolkit-docker/releases/latest/download/install_atarist_toolkit_docker.sh | bash
+
+      - name: Work out the version
+        run: |
+          # A tag already sitting on this commit is the maintainer's
+          # own: release 2's notes are a hand-written annotated tag
+          # message, and a release worth writing notes for gets tagged
+          # by hand before the merge. Release what it names rather than
+          # adding a second number for the same commit.
+          VERSION=$(git tag --points-at HEAD --list 'v*-atari*' | sort -V | tail -1)
+
+          if [ -n "$VERSION" ]; then
+            echo "This commit is already tagged $VERSION; leaving it alone."
+          else
+            # v1.4-atari was the first release and v1.4-atari.2 the
+            # second, so the count runs on from the numbered tags.
+            PREVIOUS=$(git tag --list 'v*-atari.*' | sort -V | tail -1)
+            # Refuse to invent a base version out of nothing: if the
+            # tags have gone missing, the fix is to restore them, not to
+            # start counting again from a number this job guessed.
+            test -n "$PREVIOUS" || { echo "No v*-atari.* tag to count from."; exit 1; }
+            VERSION="${PREVIOUS%-atari.*}-atari.$(( ${PREVIOUS##*-atari.} + 1 ))"
+            echo "TAG_NEEDED=1" >> "$GITHUB_ENV"
+          fi
+
+          echo "VERSION=$VERSION" >> "$GITHUB_ENV"
+
+      - name: Build
+        # The command the README documents: KOULES.TOS, the one program
+        # for every machine, KOULSFP4.TOS, the samples, and KOULES.ST,
+        # the floppy image of them all.
+        run: stcmd make
+
+      - name: Tag it
+        # Only once the build has succeeded: a tag that names a binary
+        # that never got made would be a number to explain later.
+        if: env.TAG_NEEDED == '1'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          # Through the API rather than `git push`: pushing a tag is
+          # refused when the commit it points at touches
+          # .github/workflows and the token has no workflow scope,
+          # which is exactly the commit that adds this file.
+          gh api -X POST "repos/$GITHUB_REPOSITORY/git/refs" \
+            -f ref="refs/tags/$VERSION" -f sha="$GITHUB_SHA" --silent
+          echo "Tagged $VERSION."
+
+      - name: Move the latest tag onto this commit
+        # The "latest" release is attached to this tag, so moving it
+        # keeps the release's source link pointing at the commit the
+        # attached files were actually built from. PATCH first because
+        # the tag already exists; POST covers a repository where it does
+        # not yet.
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh api -X PATCH "repos/$GITHUB_REPOSITORY/git/refs/tags/latest" \
+            -f sha="$GITHUB_SHA" -F force=true --silent \
+            || gh api -X POST "repos/$GITHUB_REPOSITORY/git/refs" \
+                 -f ref=refs/tags/latest -f sha="$GITHUB_SHA" --silent
+
+      - name: Replace the files on the latest release
+        # What a player copies to a disk: the two programs and the
+        # samples they load from beside them, and the floppy image that
+        # carries them all.
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release view latest >/dev/null 2>&1 \
+            || gh release create latest --title "Koules for Atari ST" --notes "Rolling build of the Atari ST port."
+          gh release upload latest dist/KOULES.TOS dist/KOULSFP4.TOS dist/KOULES.ST dist/*.WAV --clobber
+          echo "Published $VERSION to the latest release."
