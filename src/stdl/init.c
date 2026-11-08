@@ -163,9 +163,9 @@ initialize (void)
 
   /* The stick drives player one and the menus; upstream's keyboard
    * code then needs no joystick branch at all. */
-  STDL_JoyKeyMapping (STDLK_UP, STDLK_DOWN, STDLK_LEFT, STDLK_RIGHT,
-		      STDLK_RETURN);
-  STDL_JoyKeyEmulation (1);
+  STDL_JoystickKeyMapping (STDLK_UP, STDLK_DOWN, STDLK_LEFT, STDLK_RIGHT,
+			   STDLK_RETURN);
+  STDL_JoystickKeyEmulation (1);
   return 0;
 }
 
