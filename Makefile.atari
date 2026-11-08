@@ -89,10 +89,10 @@ CLIBS     = -lcmini -lgcc
 DBGFLAGS ?=
 
 DIST     = dist
-SIMSRC   = src/sim/bench.c src/sim/scenario.c src/krand.c
+SIMSRC   = src/sim/bench.c src/sim/scenario.c src/krand.c src/gamedim.c
 FIXSRC   = src/physics.c src/fixed.c src/sintab.c
 GAMESRC  = src/koules.c src/menu.c src/gameplan.c src/framebuffer.c \
-           src/cmap.c src/rcfiles.c src/krand.c $(FIXSRC) \
+           src/cmap.c src/rcfiles.c src/krand.c src/gamedim.c $(FIXSRC) \
            src/stdl/init.c src/stdl/draw.c src/stdl/input.c \
            src/stdl/intro.c src/stdl/crawl.c src/stdl/sound.c
 # the SFP-004 build swaps the fixed point physics for upstream's
@@ -204,22 +204,22 @@ $(DIST)/BENCHX.TOS: $(SIMSRC) $(FIXSRC) src/koules.h src/physics.h src/fixed.h s
 $(DIST)/BENCHF.TOS: $(SIMSRC) src/sim/physics_float.c src/koules.h src/physics.h src/gamedim.h | $(DIST)
 	$(CC) $(CFLAGS) $(LDFLAGS) -DKOULES_FLOAT -o $@ $(SIMSRC) src/sim/physics_float.c -lm
 
-$(DIST)/PHASEX.TOS: src/sim/phases.c src/sim/scenario.c src/krand.c $(FIXSRC) src/koules.h src/physics.h src/fixed.h src/gamedim.h | $(DIST)
-	$(CC) $(CFLAGS) $(LDFLAGS) -o $@ src/sim/phases.c src/sim/scenario.c src/krand.c $(FIXSRC)
+$(DIST)/PHASEX.TOS: src/sim/phases.c src/sim/scenario.c src/krand.c src/gamedim.c $(FIXSRC) src/koules.h src/physics.h src/fixed.h src/gamedim.h | $(DIST)
+	$(CC) $(CFLAGS) $(LDFLAGS) -o $@ src/sim/phases.c src/sim/scenario.c src/krand.c src/gamedim.c $(FIXSRC)
 
-$(DIST)/PHASE30.TOS: src/sim/phases.c src/sim/scenario.c src/krand.c $(FIXSRC) src/koules.h src/physics.h src/fixed.h src/gamedim.h | $(DIST)
-	$(CC) $(CFLAGS) $(LDFLAGS) -DN=30 -o $@ src/sim/phases.c src/sim/scenario.c src/krand.c $(FIXSRC)
+$(DIST)/PHASE30.TOS: src/sim/phases.c src/sim/scenario.c src/krand.c src/gamedim.c $(FIXSRC) src/koules.h src/physics.h src/fixed.h src/gamedim.h | $(DIST)
+	$(CC) $(CFLAGS) $(LDFLAGS) -DN=30 -o $@ src/sim/phases.c src/sim/scenario.c src/krand.c src/gamedim.c $(FIXSRC)
 
-$(DIST)/PHASEF.TOS: src/sim/phases.c src/sim/scenario.c src/krand.c src/sim/physics_float.c src/koules.h src/physics.h src/gamedim.h | $(DIST)
-	$(CC) $(CFLAGS) $(LDFLAGS) -DKOULES_FLOAT -o $@ src/sim/phases.c src/sim/scenario.c src/krand.c src/sim/physics_float.c -lm
+$(DIST)/PHASEF.TOS: src/sim/phases.c src/sim/scenario.c src/krand.c src/gamedim.c src/sim/physics_float.c src/koules.h src/physics.h src/gamedim.h | $(DIST)
+	$(CC) $(CFLAGS) $(LDFLAGS) -DKOULES_FLOAT -o $@ src/sim/phases.c src/sim/scenario.c src/krand.c src/gamedim.c src/sim/physics_float.c -lm
 
 # PHASEF with the KOULSFP4 physics: sqrt dispatched to the 68882.
 # The interesting run is on the real coprocessor - without it the
 # fallback makes this PHASEF plus a cookie check per sqrt.
-$(DIST)/PHASESFP.TOS: src/sim/phases.c src/sim/scenario.c src/krand.c src/physics_sfp.c \
+$(DIST)/PHASESFP.TOS: src/sim/phases.c src/sim/scenario.c src/krand.c src/gamedim.c src/physics_sfp.c \
                     src/sim/physics_float.c src/koules.h src/physics.h src/gamedim.h \
                     $(SFP004_LIB) | $(DIST)
-	$(CC) $(CFLAGS) -DKOULES_FLOAT -DKOULES_SFP004 -I$(SFP004) $(LDFLAGS) -o $@ src/sim/phases.c src/sim/scenario.c src/krand.c src/physics_sfp.c $(SFP004_LIB) -lm
+	$(CC) $(CFLAGS) -DKOULES_FLOAT -DKOULES_SFP004 -I$(SFP004) $(LDFLAGS) -o $@ src/sim/phases.c src/sim/scenario.c src/krand.c src/gamedim.c src/physics_sfp.c $(SFP004_LIB) -lm
 
 # Proof that no floating point survives in the fixed build: gcc
 # emits calls to these libgcc soft-float helpers for every float

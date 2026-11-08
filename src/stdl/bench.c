@@ -12,9 +12,10 @@
 /*
  * Built into the benches (KOULDB.TOS, KOULDBC.TOS) only. With
  * KOULBNCH.CFG beside the program - one line, "colours frames seed
- * level flags [dump]": colours 8 (256 on a TT or a Falcon), 4
- * (sixteen) or t (sixteen on the display's own height, 240 rows on a
- * TT or a Falcon, the play still in the top 200), flags 4 a hash of
+ * level flags [dump]": colours 8 (256 on a TT or a Falcon, 200 rows),
+ * 4 (sixteen), t (sixteen on the display's own height, 240 rows and a
+ * playfield 220 high on a TT or a Falcon) or h (the game's own: 256
+ * colours and the display's height), flags 4 a hash of
  * every page shown, written per frame to
  * KBHASH.BIN, with the page `dump` frames in written to KBPAGE.BIN -
  * it plays a level from a fixed seed with no input, every frame drawn,
@@ -62,7 +63,8 @@ kbench_config (void)
     {
       kb_on = 1;
       kresponsive = m == '8' ? STDL_RESPONSIVE_COLOUR
-	: m == 't' ? STDL_RESPONSIVE_HEIGHT : 0;
+	: m == 't' ? STDL_RESPONSIVE_HEIGHT
+	: m == 'h' ? STDL_RESPONSIVE_COLOUR | STDL_RESPONSIVE_HEIGHT : 0;
     }
   fclose (f);
   if (kb_frames < 1)

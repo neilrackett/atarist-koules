@@ -35,15 +35,17 @@ long            _stksize = 32768;
 #endif
 
 /*
- * 256 colours on a TT or a Falcon (STDL's stdl_responsive.h): what this
- * build asks for, an STDL_RESPONSIVE_ option or 0 (KOULES_RESPONSIVE;
- * the bench build, KOULDB.TOS, takes it from KOULBNCH.CFG), and whether
- * the screen it got has them.
+ * 256 colours and 240 rows on a TT or a Falcon (STDL's
+ * stdl_responsive.h): what this build asks for, STDL_RESPONSIVE_
+ * options or 0 (KOULES_RESPONSIVE; the bench build, KOULDB.TOS, takes
+ * them from KOULBNCH.CFG), and whether the screen it got has the
+ * colours. The rows set the playfield's height (gamedim.h).
  */
 #ifndef KOULES_RESPONSIVE
 #define KOULES_RESPONSIVE 0
 #endif
-int             kresponsive = KOULES_RESPONSIVE ? STDL_RESPONSIVE_COLOUR : 0;
+#define KOULES_COLOUR_HEIGHT (STDL_RESPONSIVE_COLOUR | STDL_RESPONSIVE_HEIGHT)
+int             kresponsive = KOULES_RESPONSIVE ? KOULES_COLOUR_HEIGHT : 0;
 int             k256;
 #ifdef KOULES_BENCH
 extern int      kb_on;
@@ -121,16 +123,24 @@ initialize (void)
   kbench_config ();
   /* each option by name: a variable would link them all, the ST's
      border code among them */
-  if (kresponsive == STDL_RESPONSIVE_HEIGHT)
+  if (kresponsive == KOULES_COLOUR_HEIGHT)
+    {
+      /* the game's own: 256 colours and the display's height */
+      STDL_UseResponsive (KOULES_COLOUR_HEIGHT);
+      vh = MAPHEIGHT_TALL + 20;
+    }
+  else if (kresponsive == STDL_RESPONSIVE_HEIGHT)
     {
       /* the tall screen in 16 colours, for timing a TT's present */
       STDL_UseResponsive (STDL_RESPONSIVE_HEIGHT);
-      vh = 240;
+      vh = MAPHEIGHT_TALL + 20;
     }
   else if (kresponsive == STDL_RESPONSIVE_COLOUR)
     STDL_UseResponsive (STDL_RESPONSIVE_COLOUR);
 #elif KOULES_RESPONSIVE
-  STDL_UseResponsive (STDL_RESPONSIVE_COLOUR);
+  /* 240 rows where the display has them, an ST's 200 where not */
+  STDL_UseResponsive (KOULES_COLOUR_HEIGHT);
+  vh = MAPHEIGHT_TALL + 20;
 #endif
   heap = freeram ();
   vflags = (heap >= DOUBLEBUF_HEAP) ? STDL_DOUBLEBUF : 0;
@@ -142,12 +152,16 @@ initialize (void)
       return -1;
     }
   k256 = backscreen->format->BitsPerPixel == 8;
+  /* the playfield is the rows given, less the status bar: 180 on an
+     ST, 220 where a TT or a Falcon gave 240 */
+  kmapheight_set (backscreen->h - 20);
   rocketcolor[0] = C_YELLOW;
   rocketcolor[1] = C_BLUE;
   rocketcolor[2] = C_RED;
   rocketcolor[3] = C_GREEN;
   rocketcolor[4] = C_GREY;
-  fprintf (stderr, "koules: %d colours\n", k256 ? 256 : 16);
+  fprintf (stderr, "koules: %d colours, %d rows\n", k256 ? 256 : 16,
+	   backscreen->h);
   fprintf (stderr, "koules: heap %ld bytes, %s\n", heap,
 	   (backscreen->flags & STDL_DOUBLEBUF)
 	   ? "double buffered" : "single buffered (low memory)");

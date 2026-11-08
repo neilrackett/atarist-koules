@@ -51,7 +51,7 @@
 #define TEXTW    200            /* depth between lines, upstream's   */
 #define D_NEAR   600            /* depth culling, upstream's numbers */
 #define D_FAR    (-1200)
-#define HORIZON  (MAPHEIGHT / 3)
+#define HORIZON  MAPTHIRD       /* MAPHEIGHT / 3, worked out once */
 #define PROJ     (MAPWIDTH * 220L)
 #define GLYPROJ  8000L          /* glyph height h = GLYPROJ/(1000-d) */
 #define HMIN     3

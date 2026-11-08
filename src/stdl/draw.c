@@ -509,9 +509,9 @@ void
 Line1 (int x1, int y1, int x2, int y2, int c)
 {
   x1 = (MAPWIDTH / 2 + (x1) * 220 / (1000 - (y1)) / DIV);
-  y1 = (MAPHEIGHT / 3 + MAPWIDTH * 220 / (1000 - (y1)));
+  y1 = (MAPTHIRD + MAPWIDTH * 220 / (1000 - (y1)));
   x2 = (MAPWIDTH / 2 + (x2) * 220 / (1000 - (y2)) / DIV);
-  y2 = (MAPHEIGHT / 3 + MAPWIDTH * 220 / (1000 - (y2)));
+  y2 = (MAPTHIRD + MAPWIDTH * 220 / (1000 - (y2)));
   Line (x1, y1, x2, y2, c);
 }
 

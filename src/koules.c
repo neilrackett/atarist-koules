@@ -104,6 +104,8 @@ points (void)
   unsigned int    x, y;
   Point          *p = point;
   Point          *last = point + npoint;
+  /* the height once a frame, not a load a particle (gamedim.h) */
+  const unsigned int ymax = MAPHEIGHT;
 
   /* Walking pointers, not indices: Point is 24 bytes, so gcc 4.6
      turns every point[i] into a shift-and-add chain plus a 32 bit
@@ -119,7 +121,7 @@ points (void)
 	}
       x = (unsigned int) (p->x += p->xp) >> 8;
       y = (unsigned int) (p->y += p->yp);
-      if (x > 0 && x < MAPWIDTH && y > 0 && y >> 8 < MAPHEIGHT)
+      if (x > 0 && x < MAPWIDTH && y > 0 && y >> 8 < ymax)
 	{
 	  SMySetPixel (backscreen, x, y, p->color);
 	  p++;

@@ -10,7 +10,7 @@ CFLAGS  ?= -O2 -g -Wall -Wextra -Wno-unused-parameter -std=gnu99
 INC      = -Isrc -Isrc/sim
 
 DIST     = dist
-COMMON   = src/sim/dump.c src/sim/scenario.c src/krand.c
+COMMON   = src/sim/dump.c src/sim/scenario.c src/krand.c src/gamedim.c
 FIXED    = src/physics.c src/fixed.c src/sintab.c
 
 all: $(DIST)/dumpf $(DIST)/dumpx

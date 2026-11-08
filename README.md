@@ -43,7 +43,8 @@ from CONTROL on the main menu and are remembered between sessions.
 - Atari ST, STE, Mega STE, TT or Falcon, 512KB minimum, on a colour monitor
 - TOS or EmuTOS
 - One program for every machine: on a TT or a Falcon it shows upstream's own
-  256 colours, and on an ST, STE or Mega STE the port's sixteen
+  256 colours on the display's whole 240 lines, the arena taller to fill
+  them, and on an ST, STE or Mega STE the port's sixteen on its 200
 - 1MB gets pre-shifted sprites, which make unaligned blits free; on 512KB the
   game detects the shortfall and falls back to plain sprites automatically
 - Sound effects play through the DMA sound of an STE, a Mega STE, a TT or a
